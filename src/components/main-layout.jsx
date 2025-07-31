@@ -6,13 +6,17 @@ import ToolSidebar from '@/components/tool-sidebar';
 import { Menu } from 'lucide-react';
 import GlobalTools from '@/components/global-tools';
 import { cn } from '@/lib/utils';
+import { usePathname } from 'next/navigation';
 
-export default function MainLayout({ children, user, events }) {
+export default function MainLayout({ children, user, events, activeSubsectionsDocument }) {
+    console.log("ASDASDASDASDASDASDASDASD")
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-
     const handleClose = () => setIsMenuOpen(false);
-
+    const pathname = usePathname();
+    console.log(pathname, "asdasdasdasdasd")
+    const pathCount = pathname.split('/').length;
+    console.log(pathCount, "pathCount")
     return (
         <>
             {/* --- Hamburger Button for screens smaller than xl --- */}
@@ -34,13 +38,13 @@ export default function MainLayout({ children, user, events }) {
             </div>
 
             {/* --- Main Grid Layout --- */}
-            <main className="grid grid-cols-[auto_auto_1fr] max-xl:grid-cols-[auto_1fr]">
+            <main className={cn("grid grid-cols-[auto_auto_1fr] max-xl:grid-cols-[auto_1fr]", pathCount >= 3 ? "flex" : "")}>
                 {/* Static Sidebar for large screens */}
                 {/* <div className="hidden xl:block w-[280px] max-[1540px]:w-[215px] h-screen border-r border-gray-200 flex-shrink-0"> */}
                     <ToolSidebar />
                 {/* </div> */}
 
-                <Sidebar user={user} events={events} />
+                <Sidebar user={user} events={events} activeSubsectionsDocument={activeSubsectionsDocument} />
 
                 <div className="flex-1 overflow-y-auto">
                     {children}

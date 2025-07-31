@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useModal } from "@/hooks/use-modal";
 import { useAppContext } from "@/context/app-context";
+import { format } from "date-fns";
 
 // 1. Define the form schema with Zod
 const noteFormSchema = z.object({
@@ -188,7 +189,6 @@ export default function NotesClientPage({ notes, subsectionId }) {
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-medium text-lg text-gray-900">{note.title}</h3>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm text-gray-500">{note.date}</span>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -210,6 +210,19 @@ export default function NotesClientPage({ notes, subsectionId }) {
                                             </div>
                                         </div>
                                         <p className="text-gray-600 whitespace-pre-wrap">{note.text}</p>
+                                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                                            <div className="text-xs text-gray-500">
+                                                <div>Luotu: {format(new Date(note.$createdAt), 'dd.MM.yyyy HH:mm')}</div>
+                                                {note.$updatedAt !== note.$createdAt && (
+                                                    <div>Muokattu: {format(new Date(note.$updatedAt), 'dd.MM.yyyy HH:mm')}</div>
+                                                )}
+                                            </div>
+                                            {note.user && (
+                                                <div className="text-xs text-gray-500">
+                                                    Luoja: {note.user.name || note.user.email}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useModal } from "@/hooks/use-modal";
 import ConfirmModal from "../modals/confirm-modal";
 import EventModal from "../modals/event-modal";
+import AdditionalSectionModal from "../modals/additional-section-modal";
 
 export const ModalProvider = () => {
     const [isMounted, setIsMounted] = useState(false);
@@ -22,6 +23,7 @@ export const ModalProvider = () => {
             {/* {isOpen && type === "create-event-modal" && <CreateEventModal />} */}
             {isOpen && type === "confirm-modal" && <ConfirmModal />}
             {isOpen && type === "event-modal" && <EventModal />}
+            {isOpen && type === "additional-section-modal" && <AdditionalSectionModal />}
         </>
     )
 }

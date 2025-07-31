@@ -19,7 +19,7 @@ export default function SubsectionLayout({ children }) {
                     {isCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
                 </Button>
             </div>
-            <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
+            <main className="flex-1 p-6 max-w-7xl w-full">
                 {children}
             </main>
         </div>

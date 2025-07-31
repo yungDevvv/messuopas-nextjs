@@ -330,8 +330,19 @@ export default function DocumentsClientPage({ documents, subsectionId }) {
                                                     }
                                                 </p>
                                             )}
-                                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                <span>{format(file.$createdAt, 'dd.MM.yyyy')}</span>
+                                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                                                <div className="text-xs text-gray-500">
+                                                    <div>Luotu: {format(new Date(file.$createdAt), 'dd.MM.yyyy HH:mm')}</div>
+                                                    {file.$updatedAt !== file.$createdAt && (
+                                                        <div>Muokattu: {format(new Date(file.$updatedAt), 'dd.MM.yyyy HH:mm')}</div>
+                                                    )}
+                                                </div>
+                                               
+                                                {file.user && (
+                                                    <div className="text-xs text-gray-500">
+                                                        Luoja: {file.user.name || file.user.email}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

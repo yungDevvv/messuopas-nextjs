@@ -2,7 +2,9 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
-
+.ck-editor__editable_inline {
+  min-height: 500px;
+}
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

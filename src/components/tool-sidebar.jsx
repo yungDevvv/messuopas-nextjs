@@ -3,16 +3,16 @@
 import { usePathname, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { BookText, NotebookPen, FileUp, ListTodo, X, LayoutList } from 'lucide-react';
+import { BookText, NotebookPen, FileUp, ListTodo, X, LayoutList, ShieldUser } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-
+import { useAppContext } from '@/context/app-context';
 // This is now a 'dumb' presentational component.
 // It receives all data and callbacks as props.
 export default function ToolSidebar({ onLinkClick, showCloseButton = false, onClose }) {
     const { sectionPath, subsectionPath } = useParams();
     const pathname = usePathname();
-    
+    const { user } = useAppContext();
     // It shouldn't render if we're not on a page that needs it.
     if (!sectionPath || !subsectionPath) {
         return null;
@@ -61,6 +61,23 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
                             <span>{tool.label}</span>
                         </Link>
                     ))}
+                    {user.role === "admin" && (
+                        <div className='border-t pt-2 pb-1 my-1'>
+                            <Link
+                                href={process.env.NEXT_PUBLIC_URL + "/messuopas/admin"}
+                                onClick={onLinkClick}
+                                className={cn(
+                                    "flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900",
+                                    activeTool?.id === "admin"
+                                        ? "bg-green-100 text-green-700 font-semibold"
+                                        : "font-medium"
+                                )}
+                            >
+                                <ShieldUser className="w-5 h-5" />
+                                <span>Hallintapaneeli</span>
+                            </Link>
+                        </div>
+                    )}
                 </nav>
             </div>
             <DropdownMenu>

@@ -9,7 +9,7 @@ export default function Breadcrumbs() {
     const router = useRouter();
 
     const lastSegment = pathname.split('/').pop();
-    const showBackButton = ['notes', 'documents', 'todo', 'history'].includes(lastSegment);
+    const showBackButton = ['notes', 'documents', 'todo', 'history', 'section'].includes(lastSegment);
 
     if (!showBackButton) {
         return null;

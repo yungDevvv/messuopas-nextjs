@@ -17,10 +17,32 @@ import {
 
 import { Button } from "./ui/button"
 import { EllipsisVerticalIcon, LogOut, User } from "lucide-react"
+import { signOut } from "@/lib/appwrite/server"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export function NavUser({
     user,
 }) {
+    const router = useRouter();
+
+    const handleSignOut = async () => {
+        try {
+            const { error, success } = await signOut();
+            
+            if (success) {
+                toast.success("Kirjauduit ulos onnistuneesti");
+                router.push("/auth/sign-in");
+                router.refresh();
+            } else {
+                toast.error(error || "Virhe uloskirjautumisessa");
+            }
+        } catch (error) {
+            console.error('Sign out error:', error);
+            toast.error("Virhe uloskirjautumisessa");
+        }
+    };
+
     return (
         <div className="px-2 mt-auto mb-2">
             <DropdownMenu>
@@ -70,7 +92,7 @@ export function NavUser({
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSignOut}>
                         <LogOut />
                         Kirjaudu ulos
                     </DropdownMenuItem>

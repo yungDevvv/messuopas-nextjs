@@ -25,19 +25,44 @@ export default async function Layout({ children }) {
     const { data: events, error: eventsError } = await listDocuments('main_db', 'events', [
         Query.equal('user', user.$id)
     ]);
-    console.log(events, "ASD12312312312")
+
     if (eventsError) {
         console.error('Error fetching events data:', eventsError);
-        // Optionally, render an error state
         return (
             <p className="text-red-500 text-2xl font-bold">Internal Server Error 500</p>
         );
     }
 
+    // Get active subsections for current user and active event
+    let activeSubsectionPaths = [];
+
+
+  
+        const { data: activeSubsections, error: activeSubsectionsError } = await listDocuments('main_db', 'active_event_subsections', [
+            Query.equal('userId', user.$id),
+            Query.equal('eventId', user.activeEventId)
+        ]);
+    
+        if (activeSubsections && activeSubsections.length > 0) {
+            activeSubsectionPaths = activeSubsections[0].activeSubsections || [];
+        }
+   
+       
+
+    // Process sections and mark subsections as active based on Appwrite data
+    const orderedSections = data.sort((a, b) => a.order - b.order).map(section => ({
+        ...section,
+        initialSubsections: section.initialSubsections?.map(subsection => {
+            return {
+                ...subsection,
+                isActive: activeSubsections?.length > 0 ? activeSubsectionPaths.includes(subsection.$id) : true
+            };
+        }) || []
+    }));
 
     return (
-        <AppProvider initialUser={user} initialSections={data} initialEvents={events}>
-            <MainLayout sections={data} user={user} events={events}>
+        <AppProvider initialUser={user} initialSections={orderedSections} initialEvents={events}>
+            <MainLayout sections={orderedSections} user={user} events={events} activeSubsectionsDocument={activeSubsections.length === 0 ? null : activeSubsections[0]}>
                 {children}
             </MainLayout>
             <Toaster />

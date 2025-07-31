@@ -2,7 +2,7 @@
 
 import { cache } from 'react';
 import { cookies } from 'next/headers';
-import { Account, Client, Databases, ID, Query, Storage } from 'node-appwrite';
+import { Account, Client, Databases, ID, Query, Storage, Users } from 'node-appwrite';
 
 // Initialize the Appwrite client once and reuse it
 const client = new Client()
@@ -31,13 +31,31 @@ const account = new Account(client);
  * @returns {Promise<object|null>}
  */
 
+export const createUser = async (data) => {
+    const users = new Users(client);
+
+    try {
+        const response = await users.create(
+            ID.unique(),
+            data.email,
+            undefined, // phone - optional
+            data.password,
+            data.name
+        );
+
+        return { data: response, error: null };
+    } catch (error) {
+        console.log(`Failed create user:`, error);
+        return { data: null, error: error }
+    }
+}
 
 export const listDocuments = cache(async (db, collection, queries) => {
     try {
         const databases = new Databases(client);
-        const { documents: response } = await databases.listDocuments(db, collection, queries);
+        const response = await databases.listDocuments(db, collection, queries);
 
-        return { data: response, error: null };
+        return { data: response.documents, error: null };
     } catch (error) {
         console.log(`Failed to list documents in collection ${collection}:`, error)
         return { data: null, error: error }
@@ -63,7 +81,22 @@ export async function createDocument(db_id, collection_id, { document_id, body }
         return { data: null, error: error }
     }
 }
+export async function getDocument(db, collection, document_id) {
+    const databases = new Databases(client);
 
+    try {
+        const response = await databases.getDocument(
+            db,
+            collection,
+            document_id,
+        );
+
+        return { data: response, error: null };
+    } catch (error) {
+        console.log(`Failed get document in collection ${collection}:`, error);
+        return { data: null, error: error }
+    }
+}
 export async function updateDocument(db_id, collection_id, document_id, values) {
     try {
         const { databases } = await createSessionClient();
@@ -223,18 +256,6 @@ export const getNotesFromInitialSection = async (subsectionId, eventId) => {
     }
 };
 
-export const getInitialSubsectionsActiveStatus = async () => {
-    try {
-        const { documents: initialSubsections } = await databases.listDocuments(
-            'main_db',
-            'initial_subsections_active_status'
-        );
-        return { data: initialSubsections, error: null };
-    } catch (error) {
-        console.error('Failed to fetch initial subsections active status:', error);
-        return { data: null, error: error };
-    }
-};
 
 export async function createSessionClient() {
     const client = new Client()
@@ -285,6 +306,30 @@ export async function signInWithEmail(email, password) {
         }
         return { error: null, success: true };
     } catch (error) {
+        return { error: error.message, success: false };
+    }
+}
+
+export async function signOut() {
+    try {
+        const { sessionExists, account } = await createSessionClient();
+        
+        if (!sessionExists) {
+            return { error: "No active session", success: false };
+        }
+
+        // Delete the session from Appwrite
+        await account.deleteSession('current');
+
+        // Remove the cookie
+        const cookieStore = await cookies();
+        if (cookieStore) {
+            cookieStore.delete("messuopas-session");
+        }
+
+        return { error: null, success: true };
+    } catch (error) {
+        console.error('Error signing out:', error);
         return { error: error.message, success: false };
     }
 }
