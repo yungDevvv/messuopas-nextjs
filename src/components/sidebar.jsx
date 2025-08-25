@@ -189,7 +189,7 @@ function Sidebar({ events, user, activeSubsectionsDocument }) {
                     </div> */}
                     <div className='px-2'>
                         {sections.map((section, sectionIndex) => {
-                            console.log(section.initialSubsections, "section1231231")
+                           
                             const hasActiveSubsections = section.initialSubsections?.some(sub => sub.isActive);
                             const hasSubsections = section.initialSubsections && section.initialSubsections.length > 0;
 
@@ -207,13 +207,13 @@ function Sidebar({ events, user, activeSubsectionsDocument }) {
                                         <div className="py-1 space-y-1">
                                             {section.initialSubsections.map((subsection, subIndex) => {
                                                 // In view mode, only show active subsections
-                                                console.log(subsection, "subsection.isActive")
+                                           
                                                 if (!isEditing && !subsection.isActive) return null;
 
                                                 // Get current path segments and check if last segment is documents/notes/todos
                                                 const pathSegments = pathname.split('/').filter(Boolean);
                                                 const lastSegment = pathSegments[pathSegments.length - 1];
-                                                const isSpecialSegment = ['documents', 'notes', 'todos'].includes(lastSegment);
+                                                const isSpecialSegment = ['documents', 'notes', 'todo'].includes(lastSegment);
 
                                                 // Build the base path
                                                 let fullPath = `/${section.$id}/${subsection.$id}`;
@@ -222,10 +222,10 @@ function Sidebar({ events, user, activeSubsectionsDocument }) {
                                                 if (isSpecialSegment) {
                                                     fullPath += `/${lastSegment}`;
                                                 }
-
+                                     
                                                 // Check if current path matches this subsection
                                                 const isCurrentPath = pathname === `/messuopas${fullPath}`;
-
+                                               
                                                 return (
                                                     <div key={subsection.$id || subIndex} className={cn(
                                                         "flex items-center transition-colors rounded-md overflow-hidden",

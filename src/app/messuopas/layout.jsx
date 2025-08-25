@@ -6,11 +6,12 @@ import MainLayout from "@/components/main-layout";
 import { Toaster } from "@/components/ui/sonner"
 import { ModalProvider } from "@/components/providers/modal-provider";
 import { Query } from "node-appwrite";
+import { redirect } from "next/navigation";
 
 export default async function Layout({ children }) {
     const user = await getLoggedInUser();
 
-    if (!user) return "NO SESSION"
+    if (!user) return redirect("/login");
 
     const { data, error: initialSectionsError } = await listDocuments('main_db', 'initial_sections');
 
