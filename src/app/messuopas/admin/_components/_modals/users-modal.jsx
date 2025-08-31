@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAppContext } from "@/context/app-context";
-import { createDocument, updateDocument, deleteDocument, createFile, listDocuments } from '@/lib/appwrite/server';
+import { createDocument, updateDocument, deleteDocument, createFile, listDocuments, createUser } from '@/lib/appwrite/server';
 import { Query } from "node-appwrite";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,13 @@ import { Textarea } from "@/components/ui/textarea";
 
 export default function UsersModal({ open, onOpenChange, selectedUser }) {
     const { user } = useAppContext();
-    const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm();
+    const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
+        defaultValues: {
+            role: "",
+            eventId: "",
+            organizationId: "",
+        },
+    });
     const [eventType, setEventType] = useState('existing'); // 'existing' or 'new'
     const [userType, setUserType] = useState('private'); // 'private' or 'organization'
     const [events, setEvents] = useState([]);
@@ -33,6 +39,15 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
     const [selectedOrganizationId, setSelectedOrganizationId] = useState(null);
     const router = useRouter();
     const isEditing = !!selectedUser;
+    const role = watch('role'); // observe current role
+
+    // Ensure form knows about non-native controlled fields
+    useEffect(() => {
+        // line comment: register controlled values so handleSubmit includes them
+        register('role');
+        register('eventId');
+        register('organizationId');
+    }, [register]);
 
     // Load events and organizations when modal opens
     useEffect(() => {
@@ -66,6 +81,22 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
             }
         }
     }, [open, selectedUser, setValue]);
+
+    // React to role changes: admin hides organization and events; user hides everything
+    useEffect(() => {
+        if (role === 'admin') {
+            // clear organization and event for admin
+            setSelectedOrganizationId(null);
+            setValue('organizationId', '');
+            setValue('eventId', '');
+        }
+        if (role === 'user') {
+            // user hides all extra fields -> clear org and event
+            setSelectedOrganizationId(null);
+            setValue('organizationId', '');
+            setValue('eventId', '');
+        }
+    }, [role, setValue]);
 
     // Auto-set eventType to 'new' for private users and clear events
     useEffect(() => {
@@ -103,9 +134,14 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
     };
 
     const onSubmit = async (data) => {
-        setLoading(true);
-        
+        console.log(data, "ASDASDASDASDASASDASD");
         try {
+            // line comment: quick guard — require role
+            if (!data.role) {
+                toast.error('Rooli on pakollinen');
+                return; // line comment: no loading yet, safe to return
+            }
+            setLoading(true);
             if (isEditing) {
                 // Update existing user
                 const updateData = {
@@ -215,7 +251,7 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
                     <DialogTitle>{isEditing ? 'Muokkaa käyttäjää' : 'Lisää uusi käyttäjä'}</DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <form className="space-y-4">
                     {/* Basic user info */}
 
                     <div className="space-y-2">
@@ -252,11 +288,13 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
                         </div>
                     )}
 
+                    
+
                     <div className="space-y-2">
                         <Label htmlFor="role">Rooli *</Label>
                         <Select
-                            onValueChange={(value) => setValue('role', value)}
-                            value={selectedUser?.role || ''}
+                            onValueChange={(value) => setValue('role', value, { shouldDirty: true })}
+                            value={role}
                         >
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Valitse rooli" />
@@ -270,6 +308,7 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
                         {errors.role && <span className="text-red-500 text-sm">Rooli on pakollinen</span>}
                     </div>
 
+                    {role !== 'admin' && role !== 'user' && (
                     <div className="space-y-3 py-2">
                         <Label>Käyttäjätyyppi</Label>
                         <RadioGroup value={userType} onValueChange={setUserType}>
@@ -305,9 +344,10 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
                             </Select>
                         )}
                     </div>
+                    )}
 
                     {/* Event selection - only show for private users or when organization is selected */}
-                    {(userType === 'private' || (userType === 'organization' && selectedOrganizationId)) && (
+                    {role !== 'admin' && role !== 'user' && (userType === 'private' || (userType === 'organization' && selectedOrganizationId)) && (
                         <div className="space-y-3">
                             <Label>Messut</Label>
                             {userType === 'private' ? (
@@ -341,8 +381,8 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
 
                                     {eventType === 'existing' && (
                                         <Select
-                                            onValueChange={(value) => setValue('eventId', value)}
-                                            value={selectedUser?.activeEventId || ''}
+                                            onValueChange={(value) => setValue('eventId', value, { shouldDirty: true })}
+                                            value={watch('eventId')}
                                         >
                                             <SelectTrigger className="w-full">
                                                 <SelectValue placeholder="Etsi ja valitse messu" />
@@ -369,6 +409,7 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
                         </div>
                     )}
 
+
                     {/* User type selection */}
 
 
@@ -376,7 +417,15 @@ export default function UsersModal({ open, onOpenChange, selectedUser }) {
                         <DialogClose asChild>
                             <Button variant="outline" type="button">Peruuta</Button>
                         </DialogClose>
-                        <Button type="submit" disabled={loading}>
+                        <Button
+                            type="button"
+                            onClick={(e) => {
+                                // line comment: ensure invocation and visible trace
+                                console.log('Tallenna clicked');
+                                handleSubmit(onSubmit)();
+                            }}
+                            disabled={loading}
+                        >
                             {loading ? 'Tallennetaan...' : 'Tallenna'}
                         </Button>
                     </DialogFooter>

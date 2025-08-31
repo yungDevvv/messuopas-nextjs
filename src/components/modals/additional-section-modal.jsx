@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -21,7 +20,6 @@ const formSchema = z.object({
     title: z.string().min(2, {
         message: "Tämä kenttä on pakollinen",
     }),
-    isInitial: z.boolean().default(false),
 })
 
 export default function AdditionalSectionModal() {
@@ -32,7 +30,6 @@ export default function AdditionalSectionModal() {
         resolver: zodResolver(formSchema),
         defaultValues: {
             title: "",
-            isInitial: false,
         },
     })
 
@@ -46,20 +43,17 @@ export default function AdditionalSectionModal() {
 
         setIsLoading(true);
 
-        const collectionId = values.isInitial ? "initial_sections" : "additional_sections";
-
-        const { isInitial, ...bodyValues } = values;
+        const collectionId = "additional_sections";
 
         const body = {
-            ...bodyValues
+            ...values,
+            path: slugify(values.title)
         }
-        
-        if (!values.isInitial) {
-            if (user.organization) {
-                body.organization = user.organization.$id;
-            } else {
-                body.user = user.$id;
-            }
+
+        if (user.organization) {
+            body.organization = user.organization.$id;
+        } else {
+            body.user = user.$id;
         }
 
         if (data.section) {
@@ -77,7 +71,7 @@ export default function AdditionalSectionModal() {
             form.reset();
             onClose();
         } else {
-            const { error } = await createDocument("main_db", collectionId, { document_id: slugify(values.title), body: { ...body } })
+            const { error } = await createDocument("main_db", collectionId, { body: { ...body } })
 
             if (error) {
                 toast.error("Osion luonti epäonnistui!");
@@ -86,6 +80,7 @@ export default function AdditionalSectionModal() {
 
             toast.success("Osio on luotu onnistuneesti!");
             router.refresh();
+            window.location.reload();
             form.reset();
             onClose();
         }
@@ -98,7 +93,6 @@ export default function AdditionalSectionModal() {
         if (data?.section) {
             form.reset({
                 title: data.section.title || "",
-                isInitial: data.section.isInitial || false
             })
         }
     }, [data])
@@ -120,23 +114,6 @@ export default function AdditionalSectionModal() {
                                         <Input className="!mt-1" {...field} />
                                     </FormControl>
                                     <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="isInitial"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center gap-3">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="text-base font-normal text-muted-foreground">
-                                        Tee osio alkuperäiseksi
-                                    </FormLabel>
                                 </FormItem>
                             )}
                         />

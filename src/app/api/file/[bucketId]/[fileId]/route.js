@@ -100,3 +100,36 @@ export async function GET(req, context) {
         return NextResponse.json({ error: "Storage error" }, { status: 500 });
     }
 }
+
+export async function DELETE(req, context) {
+  try {
+    // Verify user session for authorization
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("messuopas-session");
+    if (!sessionCookie) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { bucketId, fileId } = await context.params;
+
+    // Initialize Appwrite client with API key
+    const client = new Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT)
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID)
+      .setKey(process.env.APPWRITE_API_KEY);
+    const storage = new Storage(client);
+
+    await storage.deleteFile(bucketId, fileId);
+
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (error) {
+    console.error("Storage delete error:", error);
+    if (error.code === 404) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+    if (error.code === 401) {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Storage error" }, { status: 500 });
+  }
+}

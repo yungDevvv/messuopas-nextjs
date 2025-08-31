@@ -17,6 +17,10 @@ export const AppProvider = ({ children, initialUser, initialSections, initialEve
   // Можно добавить и другие состояния, например, для событий
   const [events, setEvents] = useState(initialEvents);
 
+  // Navigation state for current selected section/subsection
+  const [currentSection, setCurrentSection] = useState(null);
+  const [currentSubSection, setCurrentSubSection] = useState(null);
+
   // Оборачиваем значение в объект, чтобы передать и данные, и функции для их обновления
   const value = {
     user,
@@ -24,7 +28,11 @@ export const AppProvider = ({ children, initialUser, initialSections, initialEve
     sections,
     setSections,
     events,
-    setEvents
+    setEvents,
+    currentSection,
+    setCurrentSection,
+    currentSubSection,
+    setCurrentSubSection
   };
 
   return (

@@ -8,15 +8,14 @@ import GlobalTools from '@/components/global-tools';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 
-export default function MainLayout({ children, user, events, activeSubsectionsDocument }) {
-    console.log("ASDASDASDASDASDASDASDASD")
+export default function MainLayout({ children, user, events, organizations, privateUsers, activeSubsectionsDocument }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const handleClose = () => setIsMenuOpen(false);
     const pathname = usePathname();
-    console.log(pathname, "asdasdasdasdasd")
+
     const pathCount = pathname.split('/').length;
-    console.log(pathCount, "pathCount")
+
     return (
         <>
             {/* --- Hamburger Button for screens smaller than xl --- */}
@@ -44,7 +43,7 @@ export default function MainLayout({ children, user, events, activeSubsectionsDo
                     <ToolSidebar />
                 {/* </div> */}
 
-                <Sidebar user={user} events={events} activeSubsectionsDocument={activeSubsectionsDocument} />
+                <Sidebar user={user} events={events} organizations={organizations} privateUsers={privateUsers} activeSubsectionsDocument={activeSubsectionsDocument} />
 
                 <div className="flex-1 overflow-y-auto">
                     {children}

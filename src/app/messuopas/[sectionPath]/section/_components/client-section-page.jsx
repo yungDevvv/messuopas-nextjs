@@ -2,7 +2,7 @@
 
 import { useForm, Controller } from 'react-hook-form';
 import { useRouter, usePathname } from 'next/navigation';
-import CKeditor from "@/components/ck-editor";
+import CKeditor from "@/components/rich-text-editor";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,51 +31,30 @@ export default function ClientSectionPage({ section }) {
 
     // Handle form submission - here you get all values
     const onSubmit = async (data) => {
+        
         const submissionData = {
             title: data.title,
             html: data.html,
-            order: section.initialSubsections.length
+            order: section.additionalSubsections.length,
+            path: slugify(data.title)
         };
 
-        if (section.$collectionId === 'initial_sections') {
-            const { data: newSubsection, error } = await createDocument('main_db', 'initial_subsections', {
-                document_id: slugify(submissionData.title),
-                body: submissionData
-            });
+        const { data: newSubsection, error } = await createDocument('main_db', 'additional_subsections', {
+            body: submissionData
+        });
 
-            if (error) {
-                toast.error('Tapahtui virhe alaosion luomisessa');
-                console.error(error);
-                return;
-            }
-
-            await updateDocument('main_db', 'initial_sections', section.$id, {
-                initialSubsections: [...section.initialSubsections, newSubsection.$id]
-            });
-
-            toast.success('Alaosio on luotu onnistuneesti');
-            reset();
-            router.push(`/messuopas/${section.$id}/${newSubsection.$id}`);
-        } else {
-            const { data: newSubsection, error } = await createDocument('main_db', 'additional_subsections', {
-                document_id: slugify(submissionData.title),
-                body: submissionData
-            });
-
-            if (error) {
-                toast.error('Tapahtui virhe alaosion luomisessa');
-                console.error(error);
-                return;
-            }
-
-            await updateDocument('main_db', 'additional_sections', section.$id, {
-                additionalSubsections: [...section.additionalSubsections, newSubsection.$id]
-            });
-
-            toast.success('Alaosio on luotu onnistuneesti');
-            reset();
-            router.push(`/messuopas/${section.$id}/${newSubsection.$id}`);
+        if (error) {
+            toast.error('Tapahtui virhe alaosion luomisessa');
+            console.error(error);
+            return;
         }
+
+        await updateDocument('main_db', 'additional_sections', section.$id, {
+            additionalSubsections: [...section.additionalSubsections, newSubsection.$id]
+        });
+        toast.success('Alaosio on luotu onnistuneesti');
+        reset();
+        router.push(`/messuopas/${section.$id}/${newSubsection.$id}`);
     };
 
     return (
@@ -126,16 +105,18 @@ export default function ClientSectionPage({ section }) {
                                 <CKeditor
                                     content={field.value}
                                     handleChange={(event, editor, data) => field.onChange(data)}
+                                    uploadBucketId="sections"
                                 />
                             )}
                         />
                     </div>
                     {errors.html && <p className="text-sm text-red-500">{errors.html.message}</p>}
                 </div>
-
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Tallennetaan...' : 'Tallenna'}
-                </Button>
+                <div className="flex justify-end">
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? 'Tallennetaan...' : 'Tallenna'}
+                    </Button>
+                </div>
             </form>
         </div>
     );

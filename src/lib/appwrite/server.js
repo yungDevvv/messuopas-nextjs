@@ -343,7 +343,7 @@ export const getLoggedInUser = cache(async () => {
 
 
         const user = await account.get();
-        console.log(user, "user user useruser useruser userv useruseruseruseruseruser")
+
         const client = new Client()
             .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT)
             .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID)

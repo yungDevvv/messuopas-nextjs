@@ -15,25 +15,22 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
     const { user, sections } = useAppContext();
     
     // It shouldn't render if we're not on a page that needs it.
-    // Exception: always show on collaborators page
     if (!sectionPath || !subsectionPath) {
-       
-        if (!pathname.includes('/collaborators') && !pathname.includes('/admin')) {
+        if (!pathname.includes('/admin')) {
             return null;
         }
     }
 
     // Handle different base URLs based on current page
-    const isNotSectionPage = pathname.includes('/collaborators') || pathname.includes('/admin');
+    const isNotSectionPage = pathname.includes('/admin');
     const baseUrl = isNotSectionPage ? '/messuopas' : `/messuopas/${sectionPath}/${subsectionPath}`;
-
+    const firstSection = sections.find(section => section.order === 0);
     const tools = [
-        { id: 'opas', href: isNotSectionPage ? `/messuopas/${sections[sections.length - 1].$id}/${sections[sections.length - 1].initialSubsections[0].$id}` : baseUrl, icon: BookText, label: 'Opas' },
-        { id: 'notes', href: isNotSectionPage ? `/messuopas/${sections[sections.length - 1].$id}/${sections[sections.length - 1].initialSubsections[0].$id}/notes` : `${baseUrl}/notes`, icon: NotebookPen, label: 'Muistiinpanot' },
-        { id: 'documents', href: isNotSectionPage ? `/messuopas/${sections[sections.length - 1].$id}/${sections[sections.length - 1].initialSubsections[0].$id}/documents` : `${baseUrl}/documents`, icon: FileUp, label: 'Liitteet' },
-        { id: 'todo', href: isNotSectionPage ? `/messuopas/${sections[sections.length - 1].$id}/${sections[sections.length - 1].initialSubsections[0].$id}/todo` : `${baseUrl}/todo`, icon: ListTodo, label: 'Tehtävälista' },
-        { id: 'collaborators', href: '/messuopas/collaborators', icon: Handshake, label: 'Yhteistyökumppanit' },
-     
+        { id: 'opas', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}` : baseUrl, icon: BookText, label: 'Opas' },
+        { id: 'notes', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/notes` : `${baseUrl}/notes`, icon: NotebookPen, label: 'Muistiinpanot' },
+        { id: 'documents', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/documents` : `${baseUrl}/documents`, icon: FileUp, label: 'Liitteet' },
+        { id: 'todo', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/todo` : `${baseUrl}/todo`, icon: ListTodo, label: 'Tehtävälista' },
+        { id: 'collaborators', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/collaborators` : `${baseUrl}/collaborators`, icon: Handshake, label: 'Yhteistyökumppanit' },
     ];
 
     const activeTool = tools.slice().reverse().find(tool => pathname === tool.href || (tool.id === 'opas' && pathname.startsWith(baseUrl)));

@@ -19,9 +19,15 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
     const [loading, setLoading] = useState(false);
     const [logoFile, setLogoFile] = useState(null);
     const [logoPreview, setLogoPreview] = useState(null);
-    const [initialSectionValue, setInitialSectionValue] = useState("");
+    const [selectedInitialSection, setSelectedInitialSection] = useState(null);
+    const [selectedSubSection, setSelectedSubSection] = useState(null);
     const isEditing = !!selectedCollaborator;
     const { sections } = useAppContext();
+
+    // Get subsections for selected initial section
+    const availableSubSections = useMemo(() => {
+        return selectedInitialSection?.initialSubsections || [];
+    }, [selectedInitialSection]);
 
     // Handle logo file selection
     const handleLogoChange = (e) => {
@@ -43,9 +49,42 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                 setValue('description', selectedCollaborator.description);
                 setValue('contact_email', selectedCollaborator.contact_email);
                 setValue('contact_name', selectedCollaborator.contact_name);
+                
+                // Find and set initial section object
                 const initSectionId = selectedCollaborator?.initialSection?.$id || selectedCollaborator?.initialSection || "";
+                const initSectionObj = sections?.find(section => section.$id === initSectionId);
+                setSelectedInitialSection(initSectionObj || null);
                 setValue('initialSection', initSectionId);
-                setInitialSectionValue(initSectionId);
+                
+                // Find and set sub section object
+                const subSectionId = selectedCollaborator?.subSection?.$id || selectedCollaborator?.subSection || "";
+                let subSectionObj = null;
+                
+                if (subSectionId) {
+                    // If subSection is already an object, use it directly
+                    if (selectedCollaborator?.subSection && typeof selectedCollaborator.subSection === 'object' && selectedCollaborator.subSection.$id) {
+                        subSectionObj = selectedCollaborator.subSection;
+                    } else {
+                        // Search in current section's subsections first
+                        if (initSectionObj?.initialSubsections) {
+                            subSectionObj = initSectionObj.initialSubsections.find(sub => sub.$id === subSectionId);
+                        }
+                        
+                        // If not found in current section, search in all sections
+                        if (!subSectionObj && sections) {
+                            for (const section of sections) {
+                                if (section.initialSubsections) {
+                                    subSectionObj = section.initialSubsections.find(sub => sub.$id === subSectionId);
+                                    if (subSectionObj) break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                setSelectedSubSection(subSectionObj || null);
+                setValue('subSection', subSectionId);
+                
                 // Set logo preview if exists
                 if (selectedCollaborator.logo) {
                     setLogoPreview(selectedCollaborator.logo);
@@ -54,10 +93,29 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                 reset();
                 setLogoFile(null);
                 setLogoPreview(null);
-                setInitialSectionValue("");
+                setSelectedInitialSection(null);
+                setSelectedSubSection(null);
             }
         }
-    }, [open, selectedCollaborator, setValue, reset]);
+    }, [open, selectedCollaborator, setValue, reset, sections]);
+    // Reset form when modal closes
+    useEffect(() => {
+        if (!open) {
+            reset();
+            setLogoFile(null);
+            setLogoPreview(null);
+            setSelectedInitialSection(null);
+            setSelectedSubSection(null);
+        }
+    }, [open, reset]);
+
+    // Reset subSection when initialSection changes
+    useEffect(() => {
+        if (selectedInitialSection && !selectedCollaborator) {
+            setSelectedSubSection(null);
+            setValue('subSection', "");
+        }
+    }, [selectedInitialSection, setValue, selectedCollaborator]);
 
     const onSubmit = async (data) => {
         setLoading(true);
@@ -89,6 +147,7 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                     contact_email: data.contact_email,
                     contact_name: data.contact_name,
                     initialSection: data.initialSection,
+                    subSection: data.subSection,
                     logo: logoUrl,
                 });
             } else {
@@ -100,6 +159,7 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                         contact_email: data.contact_email,
                         contact_name: data.contact_name,
                         initialSection: data.initialSection,
+                        subSection: data.subSection,
                         logo: logoUrl,
                     }
                 });
@@ -115,7 +175,12 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
             setLoading(false);
         }
     };
-
+    
+    console.log("selectedSubSection", selectedSubSection);
+    console.log("selectedInitialSection", selectedInitialSection);
+    console.log("availableSubSections", availableSubSections);
+    console.log("selectedCollaborator", selectedCollaborator);
+     
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl">
@@ -174,9 +239,10 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                     <div className="space-y-2">
                         <Label htmlFor="initialSection">Osio</Label>
                         <Select
-                            value={initialSectionValue}
+                            value={selectedInitialSection?.$id || ""}
                             onValueChange={(val) => {
-                                setInitialSectionValue(val);
+                                const sectionObj = sections?.find(section => section.$id === val);
+                                setSelectedInitialSection(sectionObj || null);
                                 setValue('initialSection', val);
                             }}
                         >
@@ -194,10 +260,52 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                         <input
                             type="hidden"
                             {...register('initialSection', { required: true })}
-                            value={initialSectionValue}
+                            value={selectedInitialSection?.$id || ""}
                         />
                         {errors.initialSection && (
                             <span className="text-red-500 text-sm">Osio on pakollinen</span>
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="subSection">Ali-osio</Label>
+                        <Select
+                            value={selectedSubSection?.$id || ""}
+                            onValueChange={(val) => {
+                                const subSectionObj = availableSubSections?.find(sub => sub.$id === val);
+                                setSelectedSubSection(subSectionObj || null);
+                                setValue('subSection', val);
+                            }}
+                            disabled={!selectedInitialSection || availableSubSections.length === 0}
+                        >
+                           
+                            {console.log("ASDAS123123DASD", availableSubSections)}
+                            {console.log("ASDAS123112312312312312323DASD", selectedSubSection)}
+                            <SelectTrigger className="w-full !h-10">
+                                <SelectValue 
+                                    placeholder={
+                                        !selectedInitialSection 
+                                            ? "Valitse ensin osio" 
+                                            : availableSubSections.length === 0 
+                                                ? "Ei ali-osioita saatavilla" 
+                                                : "Valitse ali-osio"
+                                    } 
+                                />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableSubSections?.map((subSection) => (
+                                    <SelectItem key={subSection.$id} value={subSection.$id}>
+                                        {subSection.title}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <input
+                            type="hidden"
+                            {...register('subSection', { required: availableSubSections.length > 0 })}
+                            value={selectedSubSection?.$id || ""}
+                        />
+                        {errors.subSection && availableSubSections.length > 0 && (
+                            <span className="text-red-500 text-sm">Ali-osio on pakollinen</span>
                         )}
                     </div>
 

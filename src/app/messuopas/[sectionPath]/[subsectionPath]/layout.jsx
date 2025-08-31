@@ -14,7 +14,7 @@ export default function SubsectionLayout({ children }) {
                     onClick={toggleCollapse}
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 relative z-20"
+                    className="h-9 w-9 relative z-50"
                 >
                     {isCollapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
                 </Button>
