@@ -13,7 +13,6 @@ import { slugify } from '@/lib/utils';
 
 export default function ClientSectionPage({ section }) {
     const router = useRouter();
-
     // React Hook Form setup
     const {
         register,
@@ -31,30 +30,35 @@ export default function ClientSectionPage({ section }) {
 
     // Handle form submission - here you get all values
     const onSubmit = async (data) => {
-        
+        const collectionId = section.$collectionId === "initial_sections" ? "initial_subsections" : "additional_subsections";
+        console.log(collectionId, "collectionId");
+         
         const submissionData = {
             title: data.title,
             html: data.html,
-            order: section.additionalSubsections.length,
-            path: slugify(data.title)
+            order: section[section.$collectionId === "initial_sections" ? "initialSubsections" : "additionalSubsections"].length,
+            
         };
-
-        const { data: newSubsection, error } = await createDocument('main_db', 'additional_subsections', {
+        if(section.$collectionId === "additional_sections") {
+            submissionData.path = slugify(data.title);
+        }
+        const { data: newSubsection, error } = await createDocument('main_db', collectionId, {
             body: submissionData
         });
 
         if (error) {
-            toast.error('Tapahtui virhe alaosion luomisessa');
-            console.error(error);
+            // toast.error('Tapahtui virhe alaosion luomisessa');
+            // console.error(error);
             return;
         }
 
-        await updateDocument('main_db', 'additional_sections', section.$id, {
-            additionalSubsections: [...section.additionalSubsections, newSubsection.$id]
+        await updateDocument('main_db', section.$collectionId, section.$id, {
+            [section.$collectionId === "initial_sections" ? "initialSubsections" : "additionalSubsections"]: [...section[section.$collectionId === "initial_sections" ? "initialSubsections" : "additionalSubsections"], newSubsection.$id]
         });
         toast.success('Alaosio on luotu onnistuneesti');
         reset();
-        router.push(`/messuopas/${section.$id}/${newSubsection.$id}`);
+        // Inline comment: force full reload so Sidebar gets fresh data
+        window.location.href = `/messuopas/${section.$id}/${newSubsection.$id}`;
     };
 
     return (

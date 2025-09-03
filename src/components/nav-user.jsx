@@ -32,7 +32,7 @@ export function NavUser({
             
             if (success) {
                 toast.success("Kirjauduit ulos onnistuneesti");
-                router.push("/auth/sign-in");
+                router.push("/login");
                 router.refresh();
             } else {
                 toast.error(error || "Virhe uloskirjautumisessa");

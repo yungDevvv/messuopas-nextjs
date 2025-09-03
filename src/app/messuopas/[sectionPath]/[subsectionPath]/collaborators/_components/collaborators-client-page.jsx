@@ -5,11 +5,21 @@ import { Building2, Mail, Globe } from "lucide-react";
 import Link from "next/link";
 import SVGComponent from "@/components/svg-image";
 
-export default function CollaboratorsClientPage({ collaborators, subsectionData, allInitialSectionCollaborators }) {
+export default function CollaboratorsClientPage({ collaborators, subsectionData, sectionData, allInitialSectionCollaborators }) {
     // Collaborators are already filtered by subsection in the parent component
     const subsectionCollaborators = collaborators || [];
     const sectionFallback = allInitialSectionCollaborators || [];
     const totalCollaborators = subsectionCollaborators?.length || 0;
+
+    // Format slugs: decode, replace dashes with spaces, capitalize first letter
+    // This improves readability for values coming from URL params
+    const formatLabel = (value) => {
+        if (!value) return "";
+        const decoded = decodeURIComponent(String(value));
+        const spaced = decoded.replace(/-/g, " ");
+        return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+    };
+
     return (
         <div className="space-y-6">
             {totalCollaborators > 0 ? (
@@ -52,6 +62,7 @@ export default function CollaboratorsClientPage({ collaborators, subsectionData,
                                             <span>{collaborator.contact_name}</span>
                                         </div>
                                     )}
+                                    
                                     {collaborator.contact_email && (
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <Mail className="w-4 h-4 text-gray-400" />
@@ -89,13 +100,8 @@ export default function CollaboratorsClientPage({ collaborators, subsectionData,
                 <div className="space-y-6">
                     {sectionFallback?.length > 0 ? (
                         <>
-                            <div className="text-center py-10 text-gray-600">
-                                <div className="max-w-2xl mx-auto">
-                                    <Building2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                                    <h3 className="text-lg font-semibold mb-2 text-gray-800">Ei yhteistyökumppaneita tässä aliosiossa</h3>
-                                    <p className="leading-relaxed">Tästä aliosiosta ei löytynyt yhtään yhteistyökumppania, joten näytämme kaikki tämän osion yhteistyökumppanit.</p>
-                                </div>
-                            </div>
+                            {/* subtle hint instead of explicit empty-state */}
+                            <div className="text-sm text-gray-500 py-1 px-1">Ei löytynyt aliosiosta "{formatLabel(subsectionData)}" – näytetään kaikki yhteistyökumppanit osiosta <span className="font-semibold">"{formatLabel(sectionData)}"</span>.</div>
                             <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
                                 {sectionFallback.map((collaborator) => (
                                     <div

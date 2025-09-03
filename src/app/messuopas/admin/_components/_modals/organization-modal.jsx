@@ -11,7 +11,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
-export default function OrganizationModal({ open, onOpenChange }) {
+export default function OrganizationModal({ open, onOpenChange, fetchOrganizations }) {
     const { user } = useAppContext();
     const { register, handleSubmit, reset, formState: { errors } } = useForm();
     const [loading, setLoading] = useState(false);
@@ -35,6 +35,7 @@ export default function OrganizationModal({ open, onOpenChange }) {
             router.refresh();
             reset();
             onOpenChange(false);
+            fetchOrganizations();
         } catch (error) {
             console.error('Error creating organization:', error);
             toast.error('Virhe organisaation luomisessa');

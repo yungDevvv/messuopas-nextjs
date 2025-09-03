@@ -55,10 +55,7 @@ export default function OrganizationsTab() {
     useEffect(() => {
         fetchUsers();
         fetchOrganizations();
-        console.log("FETCHING ORGANIZATIONS TAB!!!!!!!!!!")
-        console.log("FETCHING ORGANIZATIONS TAB!!!!!!!!!!")
-        console.log("FETCHING ORGANIZATIONS TAB!!!!!!!!!!")
-        console.log("FETCHING ORGANIZATIONS TAB!!!!!!!!!!")
+
     }, []);
     return (
         <div className="space-y-6">
@@ -96,6 +93,7 @@ export default function OrganizationsTab() {
             <OrganizationModal
                 open={organizationModalOpen}
                 onOpenChange={setOrganizationModalOpen}
+                fetchOrganizations={fetchOrganizations}
             />
         </div>
     );

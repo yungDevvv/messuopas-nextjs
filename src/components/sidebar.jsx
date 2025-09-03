@@ -289,8 +289,8 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
             )}
             {/* Header with collapse button */}
             <div className={cn("flex items-center justify-end p-2 gap-2 border-b shrink-0", !isEditing && "justify-between")}>
-
-                {(user.role === "admin" || user.role === "premium_user") && !isEditing && (
+                {console.log("user", user)}
+                {(user.role === "admin" || user.role === "premium_user" || user.role === "customer_admin") && !isEditing && (
                     <Select value={activeEventId} onValueChange={handleEventChange}>
                         <SelectTrigger className="w-full max-md:ml-10">
                             <SelectValue placeholder="Valitse messut" />
@@ -312,6 +312,13 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                             return userId === ownerId;
                                         });
                                     }
+                                } else if (user.role === 'premium_user') {
+                                    // line comment: for premium_user only, restrict by accessibleEventsIds if provided
+                                    const allowed = Array.isArray(user.accessibleEventsIds) ? user.accessibleEventsIds : [];
+                                    console.log("allowed", allowed);
+                                    if (allowed.length > 0) {
+                                        filtered = filtered.filter(e => allowed.includes(e.$id));
+                                    }
                                 }
                                 return filtered.map((event) => (
                                     <SelectItem key={event.$id} value={event.$id}>
@@ -319,7 +326,9 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                     </SelectItem>
                                 ));
                             })()}
-                            <Button size="sm" className="w-full mt-2" onClick={() => onOpen("event-modal")}>Luo uudet messut</Button>
+                            {user.role === 'admin' || user.role === 'customer_admin' && (
+                                <Button size="sm" className="w-full mt-2" onClick={() => onOpen("event-modal")}>Luo uudet messut</Button>
+                            )}
                         </SelectContent>
                     </Select>
                 )}
@@ -338,19 +347,21 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                         </>
                     ) : (
                         <div className="flex items-center gap-1">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                title="Muokkaa messut"
-                                onClick={(e) => {
-                                    e.preventDefault(); // line comment: do not select item
-                                    e.stopPropagation(); // line comment: keep dropdown state controlled by Select
-                                    onOpen("event-modal", { event: events.find(e => e.$id === activeEventId) });
-                                }}
-                            >
-                                <Edit2 className="h-4 w-4" />
-                            </Button>
+                            {user.role === "admin" || user.role === "customer_admin" && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    title="Muokkaa messut"
+                                    onClick={(e) => {
+                                        e.preventDefault(); // line comment: do not select item
+                                        e.stopPropagation(); // line comment: keep dropdown state controlled by Select
+                                        onOpen("event-modal", { event: events.find(e => e.$id === activeEventId) });
+                                    }}
+                                >
+                                    <Edit2 className="h-4 w-4" />
+                                </Button>
+                            )}
                             <Button variant="ghost" size="sm" onClick={handleToggleEditMode}>
                                 <Edit className="h-4 w-4" />
                             </Button>
@@ -449,7 +460,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                         </div>
                                     )}
 
-                                    {isEditing && (
+                                    {isEditing && (user.role === "admin" || user.role === "customer_admin") && (
                                         <div className="ml-2">
                                             <Button className="w-full justify-start !px-2" variant="ghost" onClick={() => {
                                                 const sectionKey = section.path ?? section.$id;

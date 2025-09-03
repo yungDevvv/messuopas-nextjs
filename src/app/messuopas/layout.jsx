@@ -37,11 +37,25 @@ export default async function Layout({ children }) {
         );
     }
 
-    // Events: admin sees all, others only their own
+    // Events by role
+    let eventQueries = undefined; // line comment: undefined => fetch all (admin)
+    if (user.role === 'admin') {
+        eventQueries = undefined;
+    } else if (user.role === 'customer_admin') {
+        const orgId = user.organization?.$id ?? user.organization ?? null;
+        eventQueries = orgId ? [Query.equal('organization', orgId)] : [Query.equal('user', user.$id)];
+    } else if (user.role === 'premium_user') {
+        const allowed = Array.isArray(user.accessibleEventsIds) ? user.accessibleEventsIds : [];
+        eventQueries = allowed.length > 0 ? [Query.equal('$id', allowed)] : [Query.equal('user', user.$id)];
+    } else {
+        // regular user
+        eventQueries = [Query.equal('user', user.$id)];
+    }
+
     const { data: events, error: eventsError } = await listDocuments(
         'main_db',
         'events',
-        user.role === 'admin' ? undefined : [Query.equal('user', user.$id)]
+        eventQueries
     );
 
     if (eventsError) {

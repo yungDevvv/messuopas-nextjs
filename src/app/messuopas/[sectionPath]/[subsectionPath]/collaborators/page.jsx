@@ -30,7 +30,12 @@ export default async function Page({ params }) {
             <h1 className="text-2xl font-bold mb-4">Yhteistyökumppanit</h1>
             <p className="text-gray-600 mb-6">Tähän tulee yhteistyökumppanit liittyen tähän osioon.</p>
 
-            <CollaboratorsClientPage collaborators={subSectionCollaborators} subsectionData={subsectionPath} allInitialSectionCollaborators={allInitialSectionCollaborators} />
+            <CollaboratorsClientPage
+                collaborators={subSectionCollaborators}
+                subsectionData={subsectionPath}
+                sectionData={sectionPath}
+                allInitialSectionCollaborators={allInitialSectionCollaborators}
+            />
         </div>
     );
 };

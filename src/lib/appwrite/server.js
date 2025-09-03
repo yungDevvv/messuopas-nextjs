@@ -9,7 +9,6 @@ const client = new Client()
     .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT)
     .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID)
     .setKey(process.env.APPWRITE_API_KEY)
-    .setSelfSigned(); // Use only on dev mode
 
 // Initialize the Databases service once
 const databases = new Databases(client);
@@ -33,20 +32,71 @@ const account = new Account(client);
 
 export const createUser = async (data) => {
     const users = new Users(client);
-
+    const userId = ID.unique()
     try {
         const response = await users.create(
-            ID.unique(),
+            userId,
             data.email,
             undefined, // phone - optional
             data.password,
             data.name
         );
 
+        const databases = new Databases(client);
+        const {password, ...body} = data;
+        await databases.createDocument(
+            'main_db',
+            'users',
+            userId,
+            {
+                ...body
+            }
+        );
         return { data: response, error: null };
     } catch (error) {
         console.log(`Failed create user:`, error);
         return { data: null, error: error }
+    }
+}
+
+// Delete Appwrite global user by ID (Appwrite Users API)
+export const deleteUserById = async (userId) => {
+    const users = new Users(client);
+    try {
+        const response = await users.delete(userId);
+        return { data: response, error: null };
+    } catch (error) {
+        console.log(`Failed delete global user by id ${userId}:`, error);
+        return { data: null, error };
+    }
+}
+
+// Find Appwrite global user by email and delete it
+// line comment: we search, then pick exact email match and delete
+export const deleteUserByEmail = async (email) => {
+    const users = new Users(client);
+    try {
+        // Try to search by email; fallback-safe to exact filter if supported
+        let list;
+        try {
+            list = await users.list([Query.search('email', email)]);
+        } catch (e) {
+            // Some SDK versions accept object form
+            list = await users.list();
+        }
+
+        const found = (list?.users || list?.total ? list.users : list?.documents || [])
+            .find((u) => u.email && u.email.toLowerCase() === String(email).toLowerCase());
+
+        if (!found) {
+            return { data: null, error: new Error('Global user not found by email') };
+        }
+
+        const resp = await users.delete(found.$id);
+        return { data: resp, error: null };
+    } catch (error) {
+        console.log(`Failed delete global user by email ${email}:`, error);
+        return { data: null, error };
     }
 }
 
@@ -77,7 +127,7 @@ export async function createDocument(db_id, collection_id, { document_id, body }
 
         return { data: response, error: null };
     } catch (error) {
-        console.log(`Failed create document in collection ${collection_id}:`, error);
+        console.error(`Failed create document in collection ${collection_id}:`, error);
         return { data: null, error: error }
     }
 }
@@ -313,7 +363,7 @@ export async function signInWithEmail(email, password) {
 export async function signOut() {
     try {
         const { sessionExists, account } = await createSessionClient();
-        
+
         if (!sessionExists) {
             return { error: "No active session", success: false };
         }
