@@ -1,17 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppContext } from "@/context/app-context";
 import CollaboratorsTab from "./_components/collaborators-tab";
 import OrganizationsTab from "./_components/organizations-tab";
 import UsersTab from "./_components/users-tab";
 import SectionsTab from "./_components/sections-tab";
+import UsersModal from "./_components/_modals/users-modal";
 
 export default function AdminPage() {
     const { user } = useAppContext();
     const searchParams = useSearchParams();
     const [tab, setTab] = useState(1);
+
+    // Centralized UsersModal control
+    const [userModalOpen, setUserModalOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [fetchUsersFn, setFetchUsersFn] = useState(null); // receives from UsersTab
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => { setMounted(true); }, []);
+
+    const handleEditUser = useCallback((u) => {
+        setSelectedUser(u || null);
+        setUserModalOpen(true);
+    }, []);
+
+    // stable registration function to hand down to UsersTab
+    const handleRegisterFetchUsers = useCallback((fn) => {
+        // store function in state using functional update to avoid stale closures
+        setFetchUsersFn(() => fn);
+    }, []);
 
     // Check URL parameter and set appropriate tab
     useEffect(() => {
@@ -71,22 +91,34 @@ export default function AdminPage() {
                     </button>
                 </div>
 
-                {tab === 1 && (
-                    <UsersTab />
+                {tab === 1 && mounted && (
+                    <UsersTab onEditUser={handleEditUser} onRegisterFetchUsers={handleRegisterFetchUsers} />
                 )}
 
-                {tab === 2 && (
+                {tab === 2 && mounted && (
                     <CollaboratorsTab />
                 )}
 
-                {tab === 3 && (
-                    <OrganizationsTab />
+                {tab === 3 && mounted && (
+                    <OrganizationsTab onEditUser={handleEditUser} />
                 )}
 
-                {tab === 4 && (
+                {tab === 4 && mounted && (
                     <SectionsTab />
                 )}
             </div>
+            {/* Centralized Users modal */}
+            {mounted && (
+                <UsersModal
+                    open={userModalOpen}
+                    selectedUser={selectedUser}
+                    fetchUsers={fetchUsersFn || undefined}
+                    onOpenChange={(open) => {
+                        setUserModalOpen(open);
+                        if (!open) setSelectedUser(null);
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -36,6 +36,13 @@ const ConfirmModal = () => {
                         >
                             Lähetä
                         </AlertDialogAction>    
+                    ) : data?.type === "confirm" ? (
+                        <AlertDialogAction 
+                            onClick={() => data.callback()} 
+                            className=""
+                        >
+                            Vahvista
+                        </AlertDialogAction>
                     ) : (
                         <AlertDialogAction 
                             onClick={() => data.callback()} 

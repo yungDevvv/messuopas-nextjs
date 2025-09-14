@@ -15,7 +15,7 @@ export default function EventsAccessDialog({
   onSave,              // (selectedIds: string[]) => void
 }) {
   const [selected, setSelected] = useState([]);
-console.log(member, "member123123")
+
   // Inline comment: initialize from member when dialog opens or member changes
   useEffect(() => {
     if (open) {
@@ -27,7 +27,7 @@ console.log(member, "member123123")
   const toggle = (id) => {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
-console.log(selected, "asdasdasdasdasdasd")
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">

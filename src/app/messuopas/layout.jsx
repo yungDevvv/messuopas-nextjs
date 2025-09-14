@@ -8,6 +8,10 @@ import { ModalProvider } from "@/components/providers/modal-provider";
 import { Query } from "node-appwrite";
 import { redirect } from "next/navigation";
 
+// Mark this segment as dynamic to prevent static prerender during build
+// Block comment: This avoids DYNAMIC_SERVER_USAGE because getLoggedInUser() reads cookies()
+// export const dynamic = 'force-dynamic';
+
 export default async function Layout({ children }) {
     const user = await getLoggedInUser();
 

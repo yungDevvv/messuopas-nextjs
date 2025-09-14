@@ -10,18 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Crown, Mail, Shield, Users, KeyRound, Pencil, Building2, Trash2, Settings } from "lucide-react";
+import { Crown, Mail, Shield, Users, KeyRound, Pencil, Building2, Trash2, Settings, Check, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import OrganizationModal from "./organization-modal";
 import EventsAccessDialog from "./events-panel";
-import { updateDocument } from "@/lib/appwrite/server";
+import { updateDocument, deleteDocument } from "@/lib/appwrite/server";
 import { useRouter } from "next/navigation";
+import { useModal } from "@/hooks/use-modal";
 // Inline comment: Client receives fully derived props from server
 export default function ClientAccountPage({ user, planLabel, hideSubscription, orgName, orgId, isOrgOwner, members, organizationEvents }) {
+
     const [loading, setLoading] = useState(false);
     const [inviteEmail, setInviteEmail] = useState("");
     const router = useRouter();
+    const { onOpen } = useModal();
     const [memberBusy, setMemberBusy] = useState(null); // Inline comment: track busy member id
     const [orgDisplayName, setOrgDisplayName] = useState(orgName || ""); // Inline comment: shown org title
     const [editOpen, setEditOpen] = useState(false); // Inline comment: edit modal visibility
@@ -29,6 +32,7 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
     const [accessOpen, setAccessOpen] = useState(false); // Inline comment: access modal visibility
     const [targetMember, setTargetMember] = useState(null); // Inline comment: member being edited
     const [selectedEventIds, setSelectedEventIds] = useState([]); // Inline comment: checked events for member
+    const [confirmDeleteEventId, setConfirmDeleteEventId] = useState(null); // Inline comment: event delete confirm state
 
     const handlePasswordReset = async () => {
         setLoading(true);
@@ -40,6 +44,24 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
             toast.error("Virhe linkin lähetyksessä");
         } finally {
             setLoading(false);
+        }
+    };
+
+    // line comment: remove event with confirmation and refresh UI
+    const handleRemoveEvent = async (eventId) => {
+        try {
+            const { error } = await deleteDocument("main_db", "events", eventId);
+            if (error) {
+                toast.error("Messun poistaminen epäonnistui");
+                return;
+            }
+            router.refresh();
+            toast.success("Messu poistettu");
+        } catch (e) {
+            console.error(e);
+            toast.error("Tapahtui virhe");
+        } finally {
+            setConfirmDeleteEventId(null);
         }
     };
 
@@ -102,6 +124,33 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
         return names.join(", ");
     };
 
+    // line comment: open EventModal to edit an existing event by id
+    const handleEditEvent = (eventId) => {
+        if (!eventId) return;
+        const ev = Array.isArray(organizationEvents)
+            ? organizationEvents.find((e) => e?.$id === eventId)
+            : null;
+        if (!ev) {
+            toast.error("Messua ei löydy");
+            return;
+        }
+        onOpen("event-modal", { event: ev });
+    };
+
+    const handleSetOwner = async (memberId) => {
+
+        try {
+            await updateDocument('main_db', 'organizations', orgId, {
+                owners: [...user.organization.owners, memberId]
+            });
+            router.refresh();
+            toast.success("Käyttäjä on asetettu omistajaksi");
+            // Inline comment: ideally refresh organization from backend or mutate context
+        } catch (e) {
+            console.error(e);
+            toast.error("Tapahtui virhe");
+        }
+    };
     return (
         <div className="w-full max-w-7xl p-6 space-y-6">
             {/* Page heading */}
@@ -216,7 +265,7 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
                         {/* Users management */}
                         <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden">
                             <div className="flex items-center justify-between px-4 py-3">
-                                <div className="flex items-center gap-2 font-medium"><Users className="w-4 h-4" /> Käyttäjien hallinta</div>
+                                <div className="font-medium"> Käyttäjien hallinta</div>
                             </div>
                             <Table>
                                 <TableHeader>
@@ -228,23 +277,39 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
+
                                     {members.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">Ei käyttäjiä näytettäväksi</TableCell>
+                                            <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">Ei käyttäjiä vielä</TableCell>
                                         </TableRow>
                                     ) : (
-                                        members.map((m, idx) => (
+                                        members.filter((m) => m.$id !== user.$id).map((m, idx) => (
                                             <TableRow key={m.$id || idx}>
-                                                <TableCell>{m.name}</TableCell>
+                                                <TableCell>{m.name} {user.organization.owners.map((o) => o.$id).includes(m.$id) && <span className="text-xs text-green-600">(Omistaja)</span>}</TableCell>
                                                 <TableCell>{m.email}</TableCell>
                                                 <TableCell className="max-w-[300px] whitespace-nowrap overflow-hidden text-ellipsis text-xs text-muted-foreground">
-                                                    {getEventTitles(m.accessibleEventsIds)}
+                                                    {m.role === "customer_admin" ? "Kaikki" : getEventTitles(m.accessibleEventsIds)}
                                                 </TableCell>
                                                 <TableCell className="text-right space-x-2">
                                                     {m.$id === user.$id ? (
                                                         <></>
                                                     ) : (
                                                         <>
+                                                            {!user.organization.owners.map((o) => o.$id).includes(m.$id) && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => onOpen("confirm-modal", {
+                                                                        type: "confirm",
+                                                                        title: "Aseta käyttäjä organisaation omistajaksi",
+                                                                        description: `Haluatko varmasti asettaa käyttäjän "${m.name}" organisaation omistajaksi?`,
+                                                                        callback: () => handleSetOwner(m.$id)
+                                                                    })}
+                                                                    title="Aseta käyttäjä organisaation omistajaksi"
+                                                                >
+                                                                    <Crown className="w-4 h-4 text-yellow-500" />
+                                                                </Button>
+                                                            )}
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
@@ -258,7 +323,7 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
                                                                 disabled={memberBusy === (m.$id)}
                                                                 onClick={() => handleRemoveMember(m.$id)}
                                                             >
-                                                                <Trash2 className="w-4 h-4" />
+                                                                <Trash2 className="w-4 h-4 text-red-500" />
                                                             </Button>
                                                         </>
 
@@ -269,22 +334,97 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
                                     )}
                                 </TableBody>
                             </Table>
+                            {/* Invite form inside users management */}
+                            <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 py-3">
+                                <div className="font-medium mb-2">Kutsu uusi käyttäjä</div>
+                                <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+                                    <Input
+                                        type="email"
+                                        required
+                                        value={inviteEmail}
+                                        onChange={(e) => setInviteEmail(e.target.value)}
+                                        placeholder="sahkoposti@esimerkki.fi"
+                                    />
+                                    <Button type="submit" disabled={loading}>Lähetä kutsu</Button>
+                                </form>
+                            </div>
                         </div>
 
-                        {/* Invite form */}
-                        <form onSubmit={handleInvite} className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
-                            <div className="font-medium">Kutsu uusi käyttäjä</div>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <Input
-                                    type="email"
-                                    required
-
-                                    value={inviteEmail}
-                                    onChange={(e) => setInviteEmail(e.target.value)}
-                                />
-                                <Button type="submit" disabled={loading}>Lähetä kutsu</Button>
+                        {/* Events management */}
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-3">
+                                <div className="font-medium">Messujen hallinta</div>
+                                <Button onClick={() => onOpen("event-modal")}>
+                                    Luo uudet messut
+                                </Button>
                             </div>
-                        </form>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nimi</TableHead>
+                                        {/* line comment: extend with more columns later if needed */}
+                                        <TableHead className="text-right"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {(!organizationEvents || organizationEvents.length === 0) ? (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground py-6">Ei messuja vielä</TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        organizationEvents.map((ev) => (
+                                            <TableRow key={ev.$id}>
+                                                <TableCell>{ev.name}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="inline-flex items-center gap-1">
+                                                        {confirmDeleteEventId === ev.$id ? (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleRemoveEvent(ev.$id)}
+                                                                    title="Vahvista poisto"
+                                                                >
+                                                                    <Check className="w-4 h-4 text-green-600" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => setConfirmDeleteEventId(null)}
+                                                                    title="Peruuta"
+                                                                >
+                                                                    <X className="w-4 h-4 text-red-500" />
+                                                                </Button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleEditEvent(ev.$id)}
+                                                                >
+                                                                    <Settings className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => setConfirmDeleteEventId(ev.$id)}
+                                                                    title="Poista messu"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {/* Invite form moved inside users management block above */}
                     </CardContent>
                 </Card>
             )}

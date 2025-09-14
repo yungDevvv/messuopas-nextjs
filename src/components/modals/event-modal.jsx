@@ -40,69 +40,79 @@ export default function EventModal() {
     async function onSubmit(values) {
         try {
             setIsLoading(true);
-            if(user.role === "admin") {
-                // Build body depending on current admin owner selection
-                const orgId = user?.organization?.$id ?? null; // organization owner
-                const selectedUserId = user?.activeUserId ?? null; // user owner
+            // if(user.role === "admin") {
+            //     // Build body depending on current admin owner selection
+            //     const orgId = user?.organization?.$id ?? null; // organization owner
+            //     const selectedUserId = user?.activeUserId ?? null; // user owner
 
-                if (!orgId && !selectedUserId) {
-                    toast.error("Valitse ensin omistaja (organisaatio tai käyttäjä)");
-                    return;
-                }
-                const body = {
-                    ...values,
-                    organization: orgId || null,
-                    user: selectedUserId || null,
-                };
+            //     if (!orgId && !selectedUserId) {
+            //         toast.error("Valitse ensin omistaja (organisaatio tai käyttäjä)");
+            //         return;
+            //     }
+            //     const body = {
+            //         ...values,
+            //         organization: orgId || null,
+            //         user: selectedUserId || null,
+            //     };
 
-                if (data.event) {
-                    await updateDocument("main_db", "events", data.event.$id, body);
-                    // line comment: update local events list to reflect new name instantly
-                    if (setEvents) {
-                        setEvents((prev = []) => prev.map(e => e.$id === data.event.$id ? { ...e, ...body } : e));
-                    }
-                } else {
-                    const { data: created, error: createErr } = await createDocument("main_db", "events", { body });
-                    if (createErr) throw createErr;
-                    if (created?.$id) {
-                        await updateDocument("main_db", "users", user.$id, { activeEventId: created.$id }); // line comment: set newly created event active
-                        if (setEvents && created) {
-                            setEvents((prev = []) => [...prev, created]); // line comment: append newly created event
-                        }
-                    }
-                }
-                
-                router.refresh();
-                form.reset();
-                toast.success("Messut ovat luotu onnistuneesti!");
-                return;
-            }
+            //     if (data.event) {
+            //         await updateDocument("main_db", "events", data.event.$id, body);
+            //         // line comment: update local events list to reflect new name instantly
+            //         if (setEvents) {
+            //             setEvents((prev = []) => prev.map(e => e.$id === data.event.$id ? { ...e, ...body } : e));
+            //         }
+            //     } else {
+            //         const { data: created, error: createErr } = await createDocument("main_db", "events", { body });
+            //         if (createErr) throw createErr;
+            //         if (created?.$id) {
+            //             await updateDocument("main_db", "users", user.$id, { activeEventId: created.$id }); // line comment: set newly created event active
+            //             if (setEvents && created) {
+            //                 setEvents((prev = []) => [...prev, created]); // line comment: append newly created event
+            //             }
+            //         }
+            //     }
+
+            //     router.refresh();
+            //     form.reset();
+            //     toast.success("Messut ovat luotu onnistuneesti!");
+            //     return;
+            // }
             if (data.event) {
                 await updateDocument("main_db", "events", data.event.$id, {
                     ...values
                 })
                 // line comment: update local events list for non-admin path
-                if (setEvents) {
+                if (setEvents && user.role !== "admin") {
                     setEvents((prev = []) => prev.map(e => e.$id === data.event.$id ? { ...e, ...values } : e));
                 }
+                if (data?.fetchAll) { // admin panel update
+                    console.log("Fetching organizations123123123");
+                    data.fetchAll();
+                }
+                router.refresh();
+                form.reset();
+                toast.success("Messut ovat muokattu onnistuneesti!");
+                return;
             } else {
                 const { data: created, error: createErr } = await createDocument("main_db", "events", {
                     body: {
                         ...values,
+                        organization: user.organization?.$id ?? null,
                         user: user.$id
                     }
                 });
                 if (createErr) throw createErr;
-                if (created?.$id) {
-                    await updateDocument("main_db", "users", user.$id, { activeEventId: created.$id }); // line comment: set newly created event active for normal user
-                    if (setEvents && created) {
-                        setEvents((prev = []) => [...prev, created]);
-                    }
-                }
+                // if (created?.$id) {
+                //     await updateDocument("main_db", "users", user.$id, { activeEventId: created.$id }); // line comment: set newly created event active for normal user
+                //     if (setEvents && created) {
+                //         setEvents((prev = []) => [...prev, created]);
+                //     }
+                // }
+                router.refresh();
+                form.reset();
+                toast.success("Messut ovat luotu onnistuneesti!");
             }
-            router.refresh();
-            form.reset();
-            toast.success("Messut ovat luotu onnistuneesti!");
+
         } catch (error) {
             console.log("Error creating / updating event:", error)
             toast.error("Messujen luonti epäonnistui!");

@@ -6,7 +6,6 @@ import { createDocument, updateDocument, deleteDocument, createFile, listDocumen
 import { Query } from "node-appwrite";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Building, Eye, EllipsisVertical, Edit2, X, Trash } from "lucide-react";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,9 +21,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Textarea } from "@/components/ui/textarea";
 import UsersModal from "./_modals/users-modal";
 import { useModal } from "@/hooks/use-modal";
+import { getRoleLabelFi } from "@/lib/constants/roles";
 
-
-export default function UsersTab() {
+export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
     const [userModalOpen, setUserModalOpen] = useState(false);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -45,8 +44,12 @@ export default function UsersTab() {
     };
 
     useEffect(() => {
-        
         fetchUsers();
+        // line comment: expose fetchUsers to parent so AdminPage can refresh after modal actions
+        if (typeof onRegisterFetchUsers === 'function') {
+            onRegisterFetchUsers(fetchUsers);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDeleteUser = async (userId, email) => {
@@ -90,23 +93,21 @@ export default function UsersTab() {
                                     <TableCell className="font-medium">{user.name}</TableCell>
                                     <TableCell>{user.email}</TableCell>
                                     <TableCell>
-                                        <Badge variant={user.role === 'admin' ? 'destructive' : user.role === 'premium_user' ? 'default' : 'secondary'}>
-                                            {user.role}
-                                        </Badge>
+                                        <span
+                                            className={
+                                                user.role === 'admin'
+                                                    ? 'text-red-600'
+                                                    : user.role === 'customer_admin'
+                                                        ? 'text-blue-600'
+                                                        : user.role === 'premium_user'
+                                                            ? 'text-yellow-600'
+                                                            : ''
+                                            }
+                                        >
+                                            {getRoleLabelFi(user.role)}
+                                        </span>
                                     </TableCell>
                                     <TableCell>{user.organization?.name || '-'}</TableCell>
-                                    {/* <TableCell>
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="outline"
-                                                        onClick={() => {
-                                                            setSelectedUserForOrg(user);
-                                                            setAddToOrgModalOpen(true);
-                                                        }}
-                                                    >
-                                                        Lisää organisaatioon
-                                                    </Button>
-                                                </TableCell> */}
                                     <TableCell>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -118,8 +119,12 @@ export default function UsersTab() {
                                                 <DropdownMenuItem
                                                     className="gap-2"
                                                     onClick={() => {
-                                                        setSelectedUser(user);
-                                                        setUserModalOpen(true);
+                                                        if (typeof onEditUser === 'function') {
+                                                            onEditUser(user);
+                                                        } else {
+                                                            setSelectedUser(user);
+                                                            setUserModalOpen(true);
+                                                        }
                                                     }}>
                                                     <Edit2 className="h-4 w-4" /> Muokkaa
                                                 </DropdownMenuItem>
@@ -144,9 +149,10 @@ export default function UsersTab() {
                     </Table>
                 </div>
             )}
-
-
-            <UsersModal open={userModalOpen} fetchUsers={fetchUsers} onOpenChange={setUserModalOpen} selectedUser={selectedUser} />
+            {/* line comment: render local UsersModal only when parent does not control it */}
+            {/* {!onEditUser && ( */}
+                <UsersModal open={userModalOpen} fetchUsers={fetchUsers} onOpenChange={setUserModalOpen} selectedUser={selectedUser} />
+            {/* )} */}
         </div>
     );
 }

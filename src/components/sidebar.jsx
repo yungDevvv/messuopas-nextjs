@@ -326,9 +326,9 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                     </SelectItem>
                                 ));
                             })()}
-                            {user.role === 'admin' || user.role === 'customer_admin' && (
+                            {/* {user.role === 'admin' || user.role === 'customer_admin' && (
                                 <Button size="sm" className="w-full mt-2" onClick={() => onOpen("event-modal")}>Luo uudet messut</Button>
-                            )}
+                            )} */}
                         </SelectContent>
                     </Select>
                 )}
@@ -347,7 +347,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                         </>
                     ) : (
                         <div className="flex items-center gap-1">
-                            {user.role === "admin" || user.role === "customer_admin" && (
+                            {/* {user.role === "admin" || user.role === "customer_admin" && (
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -361,7 +361,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                 >
                                     <Edit2 className="h-4 w-4" />
                                 </Button>
-                            )}
+                            )} */}
                             <Button variant="ghost" size="sm" onClick={handleToggleEditMode}>
                                 <Edit className="h-4 w-4" />
                             </Button>

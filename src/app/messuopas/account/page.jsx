@@ -1,42 +1,47 @@
 import { getLoggedInUser, listDocuments } from "@/lib/appwrite/server";
 import { Query } from "node-appwrite";
 import ClientAccountPage from "./_components/client-account-page";
+import { redirect } from "next/navigation";
+import { getRoleLabelFi } from "@/lib/constants/roles";
+
+// Block comment: mark page dynamic to avoid static prerender when cookies() is used
+export const dynamic = 'force-dynamic';
 
 export default async function AccountPage() {
     // Fetch current user on server
     const user = await getLoggedInUser();
 
-    // Fetch organization members on server
-    const { data: organizationMembers } = await listDocuments(
-        "main_db",
-        "users",
-        [Query.equal("organization", user.organization.$id)]
-    );
+    // Inline comment: If not logged in, redirect before any property access
+    if (!user) return redirect("/login");
 
-    const { data: organizationEvents } = await listDocuments(
-        "main_db",
-        "events",
-        [Query.equal("organization", user.organization.$id)]
-    );
+    // Resolve organization id safely
+    const orgIdSafe = user?.organization?.$id ?? user?.organization ?? null;
+
+    // Fetch organization members on server, only if org exists
+    let organizationMembers = [];
+    let organizationEvents = [];
+    if (orgIdSafe) {
+        const { data: orgMembersData } = await listDocuments(
+            "main_db",
+            "users",
+            [Query.equal("organization", orgIdSafe)]
+        );
+        organizationMembers = orgMembersData || [];
+
+        const { data: orgEventsData } = await listDocuments(
+            "main_db",
+            "events",
+            [Query.equal("organization", orgIdSafe)]
+        );
+        organizationEvents = orgEventsData || [];
+    }
 
     // Derive server-side props for client
-    const planLabel = (() => {
-        switch (user?.role) {
-            case "premium_user":
-                return "Premium";
-            case "customer_admin":
-                return "Organisaation ylläpitäjä";
-            case undefined:
-            case null:
-                return "Ei määritetty";
-            default:
-                return "Perus käyttäjä";
-        }
-    })();
+    const planLabel = getRoleLabelFi(user?.role);
 
     const hideSubscription = user?.role === "admin" || user?.role === "customer_admin";
     const orgName = user?.organization?.name || "";
-    const orgId = user?.organization?.$id || "";
+    const orgId = orgIdSafe || "";
     const ownerIds = (user?.organization?.owners || []).map((o) => (typeof o === "string" ? o : o?.$id)).filter(Boolean);
     const isOrgOwner = Boolean(user?.organization && ownerIds.includes(user.$id));
 
@@ -50,13 +55,7 @@ export default async function AccountPage() {
     }));
 
     const clientProps = {
-        user: {
-            $id: user.$id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            accessibleEventsIds: user.accessibleEventsIds,
-        },
+        user,
         planLabel,
         hideSubscription,
         orgName,
