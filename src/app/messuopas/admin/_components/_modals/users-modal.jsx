@@ -252,7 +252,7 @@ export default function UsersModal({ open, onOpenChange, selectedUser, fetchUser
     };
 
     const onSubmit = async (data) => {
-        console.log("ASDASDASDASDASASDASD");
+     
         try {
             // line comment: quick guard — require role
             if (!data.role) {
@@ -415,6 +415,7 @@ export default function UsersModal({ open, onOpenChange, selectedUser, fetchUser
                 toast.success('Käyttäjä luotu onnistuneesti!');
                 reset();
                 onOpenChange(false);
+                fetchUsers?.();
             }
         } catch (error) {
             console.error('Error with user operation:', error);

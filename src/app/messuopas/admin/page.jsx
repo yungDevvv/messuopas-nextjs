@@ -11,6 +11,7 @@ import UsersModal from "./_components/_modals/users-modal";
 
 export default function AdminPage() {
     const { user } = useAppContext();
+    if(user.role !== "admin") return null;
     const searchParams = useSearchParams();
     const [tab, setTab] = useState(1);
 

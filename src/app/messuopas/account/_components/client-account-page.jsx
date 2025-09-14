@@ -182,7 +182,7 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
                                     </span>
                                 </CardDescription>
 
-                                {orgName && (
+                                {orgName && user.role !== "admin" && (
                                     <div className="flex items-center gap-2">
                                         {/* <Badge variant="outline" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"> */}
                                         <Building2 className="w-4 h-4" />
@@ -215,23 +215,24 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
             </div>
             {/* Subscription management */}
             {/* {!hideSubscription && ( */}
-            <Card className="bg-white border shadow-none border-zinc-200 dark:border-zinc-800 lg:col-span-2">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" /> Tilauksen hallinta</CardTitle>
-                    {/* <CardDescription>Nykyinen paketti: <span className="font-medium text-foreground">{planLabel}</span></CardDescription> */}
-                    {/* <CardAction>
+            {user.role !== "admin" && (
+                <Card className="bg-white border shadow-none border-zinc-200 dark:border-zinc-800 lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" /> Tilauksen hallinta</CardTitle>
+                        {/* <CardDescription>Nykyinen paketti: <span className="font-medium text-foreground">{planLabel}</span></CardDescription> */}
+                        {/* <CardAction>
                                 {user?.role !== "premium_user" ? (
                                     <Button disabled={loading} onClick={handleUpgrade} className="bg-green-600 hover:bg-green-700">Päivitä Premiumiin</Button>
                                 ) : (
                                     <Button variant="secondary" disabled={loading} onClick={handleDowngrade}>Alenna Perus-pakettiin</Button>
                                 )}
                             </CardAction> */}
-                </CardHeader>
-                <CardContent>
-                    <div className="text-sm text-muted-foreground">Tilauksen hallinta saatavilla pian.</div>
-                </CardContent>
-            </Card>
-            {/* )} */}
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-sm text-muted-foreground">Tilauksen hallinta saatavilla pian.</div>
+                    </CardContent>
+                </Card>
+            )}
             {/* Organization owner tools */}
             {isOrgOwner && (
                 <Card className="bg-white border shadow-none border-zinc-200 dark:border-zinc-800">

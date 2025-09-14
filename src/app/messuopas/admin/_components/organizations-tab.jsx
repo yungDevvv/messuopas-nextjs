@@ -83,7 +83,7 @@ export default function OrganizationsTab({ onEditUser }) {
         if (!ev) return;
         onOpen("event-modal", { event: ev, fetchAll });
     };
-    
+
     const handleDeleteEvent = async (eventId) => {
         const { error } = await deleteDocument('main_db', 'events', eventId);
         if (error) {
@@ -91,6 +91,7 @@ export default function OrganizationsTab({ onEditUser }) {
             toast.error('Tapahtui virhe. Tapahtuman poistaminen ei onnistunut.');
             return;
         }
+        toast.success('Messujen poistaminen onnistui!');
         setConfirmDeleteEventId(null);
         fetchAll();
     };
@@ -129,17 +130,17 @@ export default function OrganizationsTab({ onEditUser }) {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span
-                                                    className={
-                                                        user.role === 'admin'
-                                                            ? 'text-red-600'
-                                                            : user.role === 'customer_admin'
-                                                                ? 'text-blue-600'
-                                                                : user.role === 'premium_user'
-                                                                    ? 'text-yellow-600'
-                                                                    : ''
-                                                    }
+                                                        className={
+                                                            user.role === 'admin'
+                                                                ? 'text-red-600'
+                                                                : user.role === 'customer_admin'
+                                                                    ? 'text-blue-600'
+                                                                    : user.role === 'premium_user'
+                                                                        ? 'text-yellow-600'
+                                                                        : ''
+                                                        }
                                                     >
-                                                    {getRoleLabelFi(user.role)}
+                                                        {getRoleLabelFi(user.role)}
                                                     </span>
                                                     <Button
                                                         variant="ghost"
@@ -156,7 +157,17 @@ export default function OrganizationsTab({ onEditUser }) {
                             </div>
 
                             <div className="space-y-2">
-                                <div className="text-sm font-medium text-muted-foreground">Messut</div>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-medium text-muted-foreground">Messut</h3>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => onOpen("event-modal", { organization: org, fetchAll })}
+                                        title="Lisää uudet messut"
+                                    >
+                                        Lisää uudet messut
+                                    </Button>
+                                </div>
                                 {events.filter(ev => (ev.organization?.$id ?? ev.organization) === org?.$id).length === 0 ? (
                                     <div className="text-sm text-muted-foreground bg-gray-50 dark:bg-zinc-900 rounded p-2">Ei messuja vielä</div>
                                 ) : (

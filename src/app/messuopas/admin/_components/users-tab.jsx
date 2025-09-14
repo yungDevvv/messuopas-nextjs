@@ -7,7 +7,7 @@ import { Query } from "node-appwrite";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Building, Eye, EllipsisVertical, Edit2, X, Trash } from "lucide-react";
+import { Users, Building, Eye, EllipsisVertical, Edit2, X, Trash, Settings } from "lucide-react";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { debounce } from "@/lib/utils/debounce";
@@ -20,14 +20,17 @@ import { useRouter } from "next/navigation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from "@/components/ui/textarea";
 import UsersModal from "./_modals/users-modal";
+import UserEventsModal from "./_modals/user-events-modal";
 import { useModal } from "@/hooks/use-modal";
 import { getRoleLabelFi } from "@/lib/constants/roles";
 
 export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
     const [userModalOpen, setUserModalOpen] = useState(false);
+    const [userEventsModalOpen, setUserEventsModalOpen] = useState(false);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedUserForEvents, setSelectedUserForEvents] = useState(null);
 
     const { onOpen } = useModal();
 
@@ -129,6 +132,14 @@ export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
                                                     <Edit2 className="h-4 w-4" /> Muokkaa
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem
+                                                    className="gap-2"
+                                                    onClick={() => {
+                                                        setSelectedUserForEvents(user);
+                                                        setUserEventsModalOpen(true);
+                                                    }}>
+                                                    <Settings className="h-4 w-4" /> Messujen hallinta
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
                                                     className="gap-2 text-red-600"
                                                     onClick={() => onOpen("confirm-modal",
                                                         {
@@ -151,7 +162,13 @@ export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
             )}
             {/* line comment: render local UsersModal only when parent does not control it */}
             {/* {!onEditUser && ( */}
-                <UsersModal open={userModalOpen} fetchUsers={fetchUsers} onOpenChange={setUserModalOpen} selectedUser={selectedUser} />
+            <UsersModal open={userModalOpen} fetchUsers={fetchUsers} onOpenChange={setUserModalOpen} selectedUser={selectedUser} />
+            <UserEventsModal 
+                open={userEventsModalOpen} 
+                fetchUsers={fetchUsers} 
+                onOpenChange={setUserEventsModalOpen} 
+                selectedUser={selectedUserForEvents} 
+            />
             {/* )} */}
         </div>
     );
