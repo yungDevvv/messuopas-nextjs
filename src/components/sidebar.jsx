@@ -17,9 +17,9 @@ import { Query } from 'node-appwrite';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-function Sidebar({ events, user, organizations = [], privateUsers = [], activeSubsectionsDocument }) {
-    const { sections: sectionsFromProps, setSections: setSectionsInContext } = useAppContext();
-
+function Sidebar({ events, user, organizations = [], privateUsers = [], activeSubsectionsDocument, sections: sectionsFromProps }) {
+    const { setSections: setSectionsInContext } = useAppContext();
+    
     const { isCollapsed } = useSidebarStore();
     const pathname = usePathname();
     const { onOpen } = useModal();
@@ -41,12 +41,13 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
     const router = useRouter();
     // No need for localStorage anymore - data comes with isActive from layout
 
-    // Sync internal state with props from context
+    // Sync internal state with props from server (layout)
     useEffect(() => {
         if (sectionsFromProps) {
             setSections(sectionsFromProps);
+            setSectionsInContext(sectionsFromProps); // Keep context in sync for other components
         }
-    }, [sectionsFromProps]);
+    }, [sectionsFromProps, setSectionsInContext]);
 
     // Initialize owner selection from current user
     useEffect(() => {
@@ -289,9 +290,10 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
             )}
             {/* Header with collapse button */}
             <div className={cn("flex items-center justify-end p-2 gap-2 border-b shrink-0", !isEditing && "justify-between")}>
-                {console.log("user", user)}
+                
                 {(user.role === "admin" || user.role === "premium_user" || user.role === "customer_admin") && !isEditing && (
                     <Select value={activeEventId} onValueChange={handleEventChange}>
+                        {console.log(activeEventId, "events123123123")}
                         <SelectTrigger className="w-full max-md:ml-10">
                             <SelectValue placeholder="Valitse messut" />
                         </SelectTrigger>
@@ -335,15 +337,15 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                 <div className={cn("flex w-full items-center justify-between gap-2 transition-opacity duration-100", isCollapsed && "opacity-0", !isEditing && "w-fit", isEditing && "max-md:mt-10")}>
                     {isEditing ? (
                         <>
-                            <div className="justify-self-start">
+                            {/* <div className="justify-self-start">
                                 <Button size="sm" variant="ghost" onClick={() => onOpen("additional-section-modal")}>
                                     <Plus className="h-5 w-5 mr-2" /> Luo uusi osio
                                 </Button>
-                            </div>
-                            <div className="flex items-center gap-2">
+                            </div> */}
+                            {/* <div className="flex items-center justify-end gap-2"> */}
                                 <Button variant="ghost" size="sm" onClick={handleCancelEdit}><X className="h-5 w-5" /></Button>
                                 <Button size="sm" onClick={handleSaveChanges}>Tallenna</Button>
-                            </div>
+                            {/* </div> */}
                         </>
                     ) : (
                         <div className="flex items-center gap-1">
@@ -379,20 +381,24 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                         <Input className='text-sm w-full h-full pl-10' type="search" placeholder="Search..." />
                     </div> */}
                     <div className='px-2'>
+                         
                         {sections.map((section, sectionIndex) => {
-
                             const hasActiveSubsections = section.initialSubsections?.some(sub => sub.isActive);
-                            const hasSubsections = section.initialSubsections && section.initialSubsections.length > 0;
-
+                            const hasSubsections = (section.initialSubsections && section.initialSubsections.length > 0) || (section.additionalSubsections && section.additionalSubsections.length > 0);
+                            
                             // Show section if: editing mode OR has active subsections OR has no subsections but is a main section
-                            if (!isEditing && !hasActiveSubsections && hasSubsections) return null;
+                            if (!isEditing && !hasActiveSubsections && !hasSubsections) return null;
                             // For additional sections, show even if no subsections present when not editing
                             if (!hasSubsections && !isEditing && !section.isAdditional) return null;
+                        
+                            if(section.eventId && section.eventId !== user.activeEventId) return null;
+                            
                             return (
                                 <div key={section.$id || sectionIndex}>
+                                    
+                                    {(section.$collectionId === "additional_sections" && sections[sectionIndex - 1].$collectionId === "initial_sections") && <div className='pb-3 border-t mt-2 border-gray-200'></div>}
                                     <div className="text-sm font-semibold text-black/60 px-4 max-[1540px]:px-1 py-2 tracking-wide uppercase whitespace-nowrap">
                                         {sectionIndex + 1}. {section.title}
-
                                     </div>
 
                                     {/* Render subsections if they exist */}
@@ -460,7 +466,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                         </div>
                                     )}
 
-                                    {isEditing && (user.role === "admin" || user.role === "customer_admin") && (
+                                    {/* {isEditing && (user.role === "admin" || user.role === "customer_admin") && (
                                         <div className="ml-2">
                                             <Button className="w-full justify-start !px-2" variant="ghost" onClick={() => {
                                                 const sectionKey = section.path ?? section.$id;
@@ -475,7 +481,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                                 </div>
                                             </Button>
                                         </div>
-                                    )}
+                                    )} */}
                                 </div>
                             );
                         })}

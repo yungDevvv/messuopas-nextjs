@@ -150,11 +150,18 @@ export default async function Layout({ children }) {
 
     return (
         <AppProvider initialUser={user} initialSections={allSections} initialEvents={events}>
-            <MainLayout sections={allSections} user={user} events={events} organizations={organizations} privateUsers={privateUsers} activeSubsectionsDocument={activeSubsections.length === 0 ? null : activeSubsections[0]}>
+            <ModalProvider />
+            <MainLayout
+                user={user}
+                events={events}
+                organizations={organizations}
+                privateUsers={privateUsers}
+                activeSubsectionsDocument={activeSubsections?.[0]}
+                sections={allSections}
+            >
                 {children}
             </MainLayout>
             <Toaster />
-            <ModalProvider />
         </AppProvider>
     );
 }

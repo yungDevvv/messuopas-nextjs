@@ -28,18 +28,18 @@ export default function EditSubsectionPage() {
         const loadSubsection = async () => {
             if (!subsectionId) {
                 toast.error("Alaosion ID puuttuu");
-                router.push("/messuopas/admin?tab=osiot");
+                // router.push("/messuopas/admin?tab=osiot");
                 return;
             }
 
             try {
                 // Load subsections
-                const { data: subsections } = await listDocuments('main_db', 'initial_subsections', []);
+                const { data: subsections } = await listDocuments('main_db', 'additional_subsections', []);
                 const foundSubsection = subsections?.find(s => s.$id === subsectionId);
 
                 if (!foundSubsection) {
                     toast.error("Alaosiota ei löytynyt");
-                    router.push("/messuopas/admin?tab=osiot");
+                    // router.push("/messuopas/admin?tab=osiot");
                     return;
                 }
 
@@ -48,9 +48,9 @@ export default function EditSubsectionPage() {
                 setHtml(foundSubsection.html || "");
 
                 // Find parent section
-                const { data: sections } = await listDocuments('main_db', 'initial_sections', []);
+                const { data: sections } = await listDocuments('main_db', 'additional_sections', []);
                 const parentSection = sections?.find(s =>
-                    s.initialSubsections?.some(sub => sub.$id === subsectionId)
+                    s.additionalSubsections?.some(sub => sub.$id === subsectionId)
                 );
 
                 if (parentSection) {
@@ -60,7 +60,7 @@ export default function EditSubsectionPage() {
             } catch (error) {
                 console.error('Error loading subsection:', error);
                 toast.error("Virhe alaosion lataamisessa");
-                router.push("/messuopas/admin?tab=osiot");
+                // router.push("/messuopas/admin?tab=osiot");
             } finally {
                 setLoading(false);
             }
@@ -92,10 +92,11 @@ export default function EditSubsectionPage() {
                 return;
             }
 
-            const { error } = await updateDocument('main_db', 'initial_subsections', subsectionId, {
+            const { error } = await updateDocument('main_db', 'additional_subsections', subsectionId, {
                 title: title.trim(),
                 html: finalHtml,
-                order: subsection.order
+                order: subsection.order,
+                path: slugify(title)
             });
 
             if (error) {
@@ -105,7 +106,8 @@ export default function EditSubsectionPage() {
             }
 
             toast.success('Alaosio päivitetty onnistuneesti');
-            router.push("/messuopas/admin?tab=osiot");
+            router.push("/messuopas/osiot");
+            router.refresh();
         } catch (error) {
             console.error('Error updating subsection:', error);
             toast.error('Virhe alaosion päivittämisessä');
@@ -123,7 +125,7 @@ export default function EditSubsectionPage() {
             setIsSubmitting(true);
 
             // Delete subsection
-            const { error } = await deleteDocument('main_db', 'initial_subsections', subsectionId);
+            const { error } = await deleteDocument('main_db', 'additional_subsections', subsectionId);
 
             if (error) {
                 toast.error('Virhe alaosion poistamisessa');
@@ -133,14 +135,15 @@ export default function EditSubsectionPage() {
 
             // Update parent section to remove subsection reference
             if (section) {
-                const updatedSubsections = section.initialSubsections.filter(sub => sub.$id !== subsectionId);
-                await updateDocument('main_db', 'initial_sections', section.$id, {
-                    initialSubsections: updatedSubsections.map(sub => sub.$id)
+                const updatedSubsections = section.additionalSubsections.filter(sub => sub.$id !== subsectionId);
+                await updateDocument('main_db', 'additional_sections', section.$id, {
+                    additionalSubsections: updatedSubsections.map(sub => sub.$id)
                 });
             }
 
             toast.success('Alaosio poistettu onnistuneesti');
-            router.push("/messuopas/admin?tab=osiot");
+            router.push("/messuopas/osiot");
+            router.refresh();
         } catch (error) {
             console.error('Error deleting subsection:', error);
             toast.error('Virhe alaosion poistamisessa');
@@ -158,11 +161,11 @@ export default function EditSubsectionPage() {
             {/* Header */}
             <Button
                 variant="ghost"
-                onClick={() => router.push("/messuopas/admin?tab=osiot")}
+                onClick={() => router.push("/messuopas/osiot")}
                 disabled={isSubmitting}
             >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Takaisin hallintapaneeliin
+                Takaisin
             </Button>
             <div className="flex items-center justify-between">
 

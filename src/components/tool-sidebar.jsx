@@ -3,7 +3,7 @@
 import { usePathname, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { BookText, NotebookPen, FileUp, ListTodo, X, LayoutList, ShieldUser, Handshake, SquareUser } from 'lucide-react';
+import { BookText, NotebookPen, FileUp, ListTodo, X, LayoutList, ShieldUser, Handshake, SquareUser, FolderOpen } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import { useAppContext } from '@/context/app-context';
@@ -16,13 +16,13 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
 
     // It shouldn't render if we're not on a page that needs it.
     if (!sectionPath || !subsectionPath) {
-        if (!pathname.includes('/admin') && !pathname.includes('/account')) {
+        if (!pathname.includes('/admin') && !pathname.includes('/account') && !pathname.includes('/osiot')) {
             return null;
         }
     }
 
     // Handle different base URLs based on current page
-    const isNotSectionPage = pathname.includes('/admin') || pathname.includes('/account');
+    const isNotSectionPage = pathname.includes('/admin') || pathname.includes('/account') || pathname.includes('/osiot');
     const baseUrl = isNotSectionPage ? '/messuopas' : `/messuopas/${sectionPath}/${subsectionPath}`;
     const firstSection = sections.find(section => section.order === 0);
     const tools = [
@@ -36,6 +36,7 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
     const activeTool = tools.slice().reverse().find(tool => pathname === tool.href || (tool.id === 'opas' && pathname.startsWith(baseUrl)));
     const isAdminActive = pathname === "/messuopas/admin";
     const isAccountActive = pathname === "/messuopas/account";
+    const isOsiotActive = pathname === "/messuopas/osiot";
 
     return (
         <>
@@ -63,7 +64,7 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
                             onClick={onLinkClick}
                             className={cn(
                                 "flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900",
-                                activeTool?.id === tool.id && !isAdminActive && !isAccountActive
+                                activeTool?.id === tool.id && !isAdminActive && !isAccountActive && !isOsiotActive
                                     ? "bg-green-100 text-green-700 font-semibold"
                                     : "font-medium"
                             )}
@@ -85,6 +86,22 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
                         <SquareUser className="w-5 h-5" />
                         <span>Tili</span>
                     </Link>
+                    {(user.role === "admin" || user.role === "customer_admin" || user.role === "premium_user") && (
+                        <Link
+                            href="/messuopas/osiot"
+                            onClick={onLinkClick}
+                            className={cn(
+                                "flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900",
+                                pathname === "/messuopas/osiot"
+                                    ? "bg-green-100 text-green-700 font-semibold"
+                                    : "font-medium"
+                            )}
+                        >
+                            <FolderOpen className="w-5 h-5" />
+                            <span>Osiot</span>
+                        </Link>
+                    )}
+
                     {user.role === "admin" && (
                         <div className='border-t pt-2 pb-1 my-1'>
                             <Link

@@ -149,20 +149,7 @@ export default function UserEventsModal({ open, onOpenChange, selectedUser, fetc
         }
     };
 
-    // line comment: format date for display
-    const formatDate = (dateString) => {
-        if (!dateString) return 'Ei päivämäärää';
-        try {
-            return new Date(dateString).toLocaleDateString('fi-FI', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
-        } catch {
-            return 'Virheellinen päivämäärä';
-        }
-    };
-
+   
     // line comment: get event owner display name
     const getEventOwner = (event) => {
         if (event.organization?.name) {

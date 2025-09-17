@@ -10,11 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Crown, Mail, Shield, Users, KeyRound, Pencil, Building2, Trash2, Settings, Check, X } from "lucide-react";
+import { Crown, Mail, Shield, Users, KeyRound, Pencil, Building2, Trash2, Settings, Check, X, Calendar, Plus, UserPlus, Send, MoreVertical } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import OrganizationModal from "./organization-modal";
 import EventsAccessDialog from "./events-panel";
+import EventAccessModal from "./event-access-modal";
+import InviteUserModal from "@/components/modals/invite-user-modal";
 import { updateDocument, deleteDocument } from "@/lib/appwrite/server";
 import { useRouter } from "next/navigation";
 import { useModal } from "@/hooks/use-modal";
@@ -33,9 +36,12 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
     const [targetMember, setTargetMember] = useState(null); // Inline comment: member being edited
     const [selectedEventIds, setSelectedEventIds] = useState([]); // Inline comment: checked events for member
     const [confirmDeleteEventId, setConfirmDeleteEventId] = useState(null); // Inline comment: event delete confirm state
+    const [eventAccessOpen, setEventAccessOpen] = useState(false); // Inline comment: event access modal visibility
+    const [targetEvent, setTargetEvent] = useState(null); // Inline comment: event being managed
 
     const handlePasswordReset = async () => {
         setLoading(true);
+
         try {
             // await fetch("/api/account/password/reset", { method: "POST" });
             toast.success("Palautuslinkki lähetetty");
@@ -65,18 +71,34 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
         }
     };
 
-    const handleInvite = async (e) => {
-        e.preventDefault();
-        setLoading(true);
+    const handleInvite = async (email, selectedEventIds) => {
         try {
-            // await fetch("/api/organization/invite", { method: "POST", body: JSON.stringify({ email: inviteEmail }) });
-            toast.success("Tämä funktio ei toimi vielä!");
-            setInviteEmail("");
-        } catch (e) {
-            console.error(e);
-            toast.error("Virhe kutsun lähettämisessä");
-        } finally {
-            setLoading(false);
+            const response = await fetch("/api/invite/send", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email,
+                    organizationId: orgId,
+                    eventIds: selectedEventIds, // Changed from eventId to eventIds array
+                    inviterUserId: user.$id,
+                    inviterName: user.name
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "Virhe kutsun lähettämisessä");
+            }
+
+            toast.success("Kutsu lähetetty onnistuneesti!");
+            router.refresh(); // Refresh to update member list if needed
+        } catch (error) {
+            console.error("Invitation error:", error);
+            toast.error(error.message || "Virhe kutsun lähettämisessä");
+            throw error; // Re-throw to let modal handle loading state
         }
     };
 
@@ -100,6 +122,12 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
         setAccessOpen(true);
     };
 
+    // Inline comment: open event access modal for managing event permissions
+    const openEventAccessModal = (event) => {
+        setTargetEvent(event);
+        setEventAccessOpen(true);
+    };
+
     const handleRemoveMember = async (memberId) => {
         setMemberBusy(memberId);
         try {
@@ -116,11 +144,11 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
 
     // Inline comment: resolve event titles from accessible ids
     const getEventTitles = (ids) => {
-        if (!Array.isArray(ids) || ids.length === 0) return "—";
+        if (!Array.isArray(ids) || ids.length === 0) return " —";
         const names = ids
             .map((id) => organizationEvents?.find?.((e) => e.$id === id)?.name)
             .filter(Boolean);
-        if (names.length === 0) return "—";
+        if (names.length === 0) return " —";
         return names.join(", ");
     };
 
@@ -154,9 +182,9 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
     return (
         <div className="w-full max-w-7xl p-6 space-y-6">
             {/* Page heading */}
-            <div className="space-y-1">
-                <h1 className="text-2xl font-bold tracking-tight">Tili</h1>
-                <p className="text-sm text-muted-foreground">Hallinnoi profiilia, turvallisuutta ja tilauksia.</p>
+            <div className="space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight">Tili</h1>
+                <p className="text-base text-muted-foreground">Hallinnoi profiilia, turvallisuutta ja tilauksia.</p>
             </div>
 
             {/* Profile summary */}
@@ -165,7 +193,7 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
             {/* Main grid */}
             <div className="grid gap-5 grid-cols-2">
                 {/* Profile */}
-                <Card className="relative overflow-hidden border rounded-xl shadow-sm hover:shadow-md transition-all bg-gradient-to-br from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-950 border-zinc-200/80 dark:border-zinc-800">
+                <Card className="relative overflow-hidden border rounded-xl shadow-none">
                     <CardHeader className="flex items-start py-4 px-5 sm:px-6">
                         <div className="flex items-start gap-4">
                             <Avatar className="size-16 ring-2 ring-zinc-200 dark:ring-zinc-700 shadow-sm">
@@ -236,19 +264,28 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
             {/* Organization owner tools */}
             {isOrgOwner && (
                 <Card className="bg-white border shadow-none border-zinc-200 dark:border-zinc-800">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">Organisaatio</CardTitle>
-                        <CardDescription className="hidden"></CardDescription>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Building2 className="w-5 h-5" />
+                            Organisaatio
+                        </CardTitle>
+                        <CardDescription>
+                            Hallitse organisaatiosi asetuksia, käyttäjiä ja messuja
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-5">
-                        {/* Organization settings */}
-                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 space-y-2">
+                    <CardContent className="space-y-8">
+                        {/* Organization info card */}
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
                             <div className="flex items-center justify-between">
-                                <div className="space-y-2">
+                                <div className="space-y-1">
                                     <div className="text-sm text-muted-foreground">Organisaation nimi</div>
                                     <div className="text-base font-medium">{orgDisplayName || "—"}</div>
                                 </div>
-                                <Button size="sm" variant="ghost" onClick={() => { setEditName(orgDisplayName); setEditOpen(true); }}>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => { setEditName(orgDisplayName); setEditOpen(true); }}
+                                >
                                     <Pencil className="w-4 h-4" />
                                 </Button>
                             </div>
@@ -263,169 +300,190 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
                             title="Muokkaa organisaation nimeä"
                         />
 
-                        {/* Users management */}
-                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-3">
-                                <div className="font-medium"> Käyttäjien hallinta</div>
+                        {/* Users management section */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <h3 className="text-base font-semibold flex items-center gap-2">
+                                        <Users className="w-4 h-4" />
+                                        Käyttäjien hallinta
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Hallitse organisaatiosi jäseniä ja heidän käyttöoikeuksiaan
+                                    </p>
+                                </div>
+                                <Button
+                                    className="gap-2"
+                                    onClick={() => onOpen("invite-user-modal", {
+                                        onInvite: handleInvite,
+                                        events: organizationEvents
+                                    })}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Kutsu käyttäjä palveluun
+                                </Button>
                             </div>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nimi</TableHead>
-                                        <TableHead>Sähköposti</TableHead>
-                                        <TableHead>Messut</TableHead>
-                                        <TableHead className="text-right"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
 
-                                    {members.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">Ei käyttäjiä vielä</TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        members.filter((m) => m.$id !== user.$id).map((m, idx) => (
-                                            <TableRow key={m.$id || idx}>
-                                                <TableCell>{m.name} {user.organization.owners.map((o) => o.$id).includes(m.$id) && <span className="text-xs text-green-600">(Omistaja)</span>}</TableCell>
-                                                <TableCell>{m.email}</TableCell>
-                                                <TableCell className="max-w-[300px] whitespace-nowrap overflow-hidden text-ellipsis text-xs text-muted-foreground">
-                                                    {m.role === "customer_admin" ? "Kaikki" : getEventTitles(m.accessibleEventsIds)}
-                                                </TableCell>
-                                                <TableCell className="text-right space-x-2">
-                                                    {m.$id === user.$id ? (
-                                                        <></>
-                                                    ) : (
-                                                        <>
-                                                            {!user.organization.owners.map((o) => o.$id).includes(m.$id) && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => onOpen("confirm-modal", {
-                                                                        type: "confirm",
-                                                                        title: "Aseta käyttäjä organisaation omistajaksi",
-                                                                        description: `Haluatko varmasti asettaa käyttäjän "${m.name}" organisaation omistajaksi?`,
-                                                                        callback: () => handleSetOwner(m.$id)
-                                                                    })}
-                                                                    title="Aseta käyttäjä organisaation omistajaksi"
-                                                                >
-                                                                    <Crown className="w-4 h-4 text-yellow-500" />
+                            {/* Users list */}
+                            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                {members.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <Users className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+                                        <p className="text-muted-foreground">Ei käyttäjiä vielä</p>
+                                        <p className="text-sm text-muted-foreground mt-1">Kutsu ensimmäinen käyttäjä alla olevalla lomakkeella</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        {members.filter((m) => m.$id !== user.$id).map((m, idx) => {
+                                            const isOwner = user.organization.owners.map((o) => o.$id).includes(m.$id);
+                                            return (
+                                                <div key={m.$id || idx} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-medium">
+                                                                {m.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-medium">{m.name}</span>
+                                                                    {isOwner && (
+                                                                        <Badge variant="secondary" className="text-green-600">
+                                                                            {/* <Crown className="w-3 h-3 mr-1" /> */}
+                                                                            Omistaja
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-sm">{m.email}</div>
+                                                                <div className="text-xs text-muted-foreground flex items-center">
+                                                                    Sallitut messut: {m.role === "customer_admin" ? "Kaikki" : <p className="ml-1 text-sm text-black">{getEventTitles(m.accessibleEventsIds)}</p>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="sm">
+                                                                    <MoreVertical className="w-4 h-4" />
                                                                 </Button>
-                                                            )}
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => openAccessModal(m)}
-                                                            >
-                                                                <Settings className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                disabled={memberBusy === (m.$id)}
-                                                                onClick={() => handleRemoveMember(m.$id)}
-                                                            >
-                                                                <Trash2 className="w-4 h-4 text-red-500" />
-                                                            </Button>
-                                                        </>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                {!isOwner && (
+                                                                    <>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => onOpen("confirm-modal", {
+                                                                                type: "confirm",
+                                                                                title: "Aseta käyttäjä organisaation omistajaksi",
+                                                                                description: `Haluatko varmasti asettaa käyttäjän "${m.name}" organisaation omistajaksi?`,
+                                                                                callback: () => handleSetOwner(m.$id)
+                                                                            })}
+                                                                        >
+                                                                            <Crown className="w-4 h-4 mr-2" />
+                                                                            Aseta omistajaksi
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => openAccessModal(m)}>
+                                                                            <Shield className="w-4 h-4 mr-2" />
+                                                                            Hallitse käyttöoikeuksia
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                                <DropdownMenuItem
+                                                                    className="text-red-600"
+                                                                    disabled={memberBusy === (m.$id)}
+                                                                    onClick={() => handleRemoveMember(m.$id)}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4 mr-2" />
+                                                                    Poista käyttäjä
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
 
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                            {/* Invite form inside users management */}
-                            <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 py-3">
-                                <div className="font-medium mb-2">Kutsu uusi käyttäjä</div>
-                                <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-                                    <Input
-                                        type="email"
-                                        required
-                                        value={inviteEmail}
-                                        onChange={(e) => setInviteEmail(e.target.value)}
-                                        placeholder="sahkoposti@esimerkki.fi"
-                                    />
-                                    <Button type="submit" disabled={loading}>Lähetä kutsu</Button>
-                                </form>
                             </div>
                         </div>
 
-                        {/* Events management */}
-                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-3">
-                                <div className="font-medium">Messujen hallinta</div>
-                                <Button onClick={() => onOpen("event-modal")}>
+                        {/* Events management section */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <h3 className="text-base font-semibold flex items-center gap-2">
+                                        <Calendar className="w-4 h-4" />
+                                        Messujen hallinta
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Luo ja hallitse organisaatiosi messuja
+                                    </p>
+                                </div>
+                                <Button onClick={() => onOpen("event-modal")} className="gap-2">
+                                    <Plus className="w-4 h-4" />
                                     Luo uudet messut
                                 </Button>
                             </div>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nimi</TableHead>
-                                        {/* line comment: extend with more columns later if needed */}
-                                        <TableHead className="text-right"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {(!organizationEvents || organizationEvents.length === 0) ? (
-                                        <TableRow>
-                                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground py-6">Ei messuja vielä</TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        organizationEvents.map((ev) => (
-                                            <TableRow key={ev.$id}>
-                                                <TableCell>{ev.name}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="inline-flex items-center gap-1">
-                                                        {confirmDeleteEventId === ev.$id ? (
-                                                            <>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => handleRemoveEvent(ev.$id)}
-                                                                    title="Vahvista poisto"
-                                                                >
-                                                                    <Check className="w-4 h-4 text-green-600" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => setConfirmDeleteEventId(null)}
-                                                                    title="Peruuta"
-                                                                >
-                                                                    <X className="w-4 h-4 text-red-500" />
-                                                                </Button>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => handleEditEvent(ev.$id)}
-                                                                >
-                                                                    <Settings className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => setConfirmDeleteEventId(ev.$id)}
-                                                                    title="Poista messu"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4 text-red-500" />
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
 
-                        {/* Invite form moved inside users management block above */}
+                            {/* Events list */}
+                            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                {(!organizationEvents || organizationEvents.length === 0) ? (
+                                    <div className="text-center py-8">
+                                        <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+                                        <p className="text-muted-foreground">Ei messuja vielä</p>
+                                        <p className="text-sm text-muted-foreground mt-1">Luo ensimmäiset messut yllä olevalla painikkeella</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        {organizationEvents.map((ev) => (
+                                            <div key={ev.$id} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center space-x-3">
+                                                        <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                                                            <Calendar className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <div className="font-medium">{ev.name}</div>
+
+                                                        </div>
+                                                    </div>
+
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="sm">
+                                                                <MoreVertical className="w-4 h-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => handleEditEvent(ev.$id)}>
+                                                                <Settings className="w-4 h-4 mr-2" />
+                                                                Muokkaa messua
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => openEventAccessModal(ev)}>
+                                                                <Shield className="w-4 h-4 mr-2" />
+                                                                Hallitse käyttöoikeuksia
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                className="text-red-600"
+                                                                onClick={() => onOpen("confirm-modal",
+                                                                    {
+                                                                        title: "Poista messut",
+                                                                        description: `Haluatko varmasti poistaa messut "${ev.name}"?`,
+                                                                        callback: () => handleRemoveEvent(ev.$id)
+                                                                    }
+                                                                )}
+                                                            >
+                                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                                Poista messu
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             )}
@@ -435,17 +493,44 @@ export default function ClientAccountPage({ user, planLabel, hideSubscription, o
                 onOpenChange={setAccessOpen}
                 member={targetMember}
                 events={organizationEvents}
-                onSave={async (selectedIds) => {
-                    const { error } = await updateDocument("main_db", "users", targetMember.$id, { accessibleEventsIds: selectedIds });
+                onSave={async (selectedIds, newActiveEventId) => {
+                  
+
+                    const updateData = { accessibleEventsIds: selectedIds };
+                    
+                    // If we need to update the active event as well
+                    if (newActiveEventId) {
+                        updateData.activeEventId = newActiveEventId;
+                    }
+
+                    const { error } = await updateDocument("main_db", "users", targetMember.$id, updateData);
                     if (error) {
+                        console.error("Update error:", error);
                         toast.error("Messujen käyttöoikeuksien tallennus epäonnistui");
                         return;
                     }
+                    
                     router.refresh();
                     toast.success("Messujen käyttöoikeudet tallennettu");
                     setAccessOpen(false);
                 }}
             />
+
+            {/* Event Access Management Modal */}
+            <EventAccessModal
+                open={eventAccessOpen}
+                onOpenChange={setEventAccessOpen}
+                event={targetEvent}
+                members={members}
+                user={user}
+                onSave={() => {
+                    router.refresh();
+                    setEventAccessOpen(false);
+                }}
+            />
+
+            {/* Invite User Modal */}
+            <InviteUserModal />
         </div>
     );
 }

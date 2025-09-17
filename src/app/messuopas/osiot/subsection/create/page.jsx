@@ -1,73 +1,59 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
-import { listDocuments, updateDocument, deleteDocument } from "@/lib/appwrite/server";
+import { createDocument, listDocuments, updateDocument } from "@/lib/appwrite/server";
+import { slugify } from "@/lib/utils";
 import CKeditor from "@/components/rich-text-editor";
 
-export default function EditSubsectionPage() {
+export default function CreateSubsectionPage() {
     const router = useRouter();
-    const params = useParams();
-    const subsectionId = params.id;
+    const searchParams = useSearchParams();
+    const sectionId = searchParams.get('sectionId');
 
     const [title, setTitle] = useState("");
     const [html, setHtml] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editorApi, setEditorApi] = useState(null); // line comments in English
-    const [subsection, setSubsection] = useState(null);
     const [section, setSection] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Load subsection info
+    // Load section info
     useEffect(() => {
-        const loadSubsection = async () => {
-            if (!subsectionId) {
-                toast.error("Alaosion ID puuttuu");
+        const loadSection = async () => {
+            if (!sectionId) {
+                toast.error("Osion ID puuttuu");
                 router.push("/messuopas/admin?tab=osiot");
                 return;
             }
 
             try {
-                // Load subsections
-                const { data: subsections } = await listDocuments('main_db', 'initial_subsections', []);
-                const foundSubsection = subsections?.find(s => s.$id === subsectionId);
+                const { data: sections } = await listDocuments('main_db', 'additional_sections', []);
+                const foundSection = sections?.find(s => s.$id === sectionId);
 
-                if (!foundSubsection) {
-                    toast.error("Alaosiota ei löytynyt");
-                    router.push("/messuopas/admin?tab=osiot");
+                if (!foundSection) {
+                    toast.error("Osiota ei löytynyt");
+                    // router.push("/messuopas/admin?tab=osiot");
                     return;
                 }
 
-                setSubsection(foundSubsection);
-                setTitle(foundSubsection.title || "");
-                setHtml(foundSubsection.html || "");
-
-                // Find parent section
-                const { data: sections } = await listDocuments('main_db', 'initial_sections', []);
-                const parentSection = sections?.find(s =>
-                    s.initialSubsections?.some(sub => sub.$id === subsectionId)
-                );
-
-                if (parentSection) {
-                    setSection(parentSection);
-                }
-
+                setSection(foundSection);
             } catch (error) {
-                console.error('Error loading subsection:', error);
-                toast.error("Virhe alaosion lataamisessa");
-                router.push("/messuopas/admin?tab=osiot");
+                console.error('Error loading section:', error);
+                toast.error("Virhe osion lataamisessa");
+                // router.push("/messuopas/admin?tab=osiot");
             } finally {
                 setLoading(false);
             }
         };
 
-        loadSubsection();
-    }, [subsectionId, router]);
+        loadSection();
+    }, [sectionId, router]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -79,7 +65,7 @@ export default function EditSubsectionPage() {
         try {
             setIsSubmitting(true);
 
-            // Resolve pending uploads from editor first
+            // Resolve pending uploads from editor to replace blob: with SSR URLs
             let finalHtml = html;
             try {
                 if (editorApi && typeof editorApi.resolvePendingUploads === 'function') {
@@ -92,62 +78,39 @@ export default function EditSubsectionPage() {
                 return;
             }
 
-            const { error } = await updateDocument('main_db', 'initial_subsections', subsectionId, {
-                title: title.trim(),
-                html: finalHtml,
-                order: subsection.order
+            // Create subsection
+            const { data: newSubsection, error } = await createDocument('main_db', 'additional_subsections', {
+                body: {
+                    title: title.trim(),
+                    html: finalHtml,
+                    order: section.additionalSubsections?.length || 0,
+                    path: slugify(title)
+                }
             });
 
             if (error) {
-                toast.error('Virhe alaosion päivittämisessä');
+                toast.error('Virhe alaosion luomisessa');
                 console.error(error);
                 return;
             }
 
-            toast.success('Alaosio päivitetty onnistuneesti');
-            router.push("/messuopas/admin?tab=osiot");
+            // Update section to include new subsection
+            const updatedSubsections = [...(section.additionalSubsections || []), newSubsection.$id];
+            await updateDocument('main_db', 'additional_sections', section.$id, {
+                additionalSubsections: updatedSubsections
+            });
+
+            toast.success('Alaosio luotu onnistuneesti');
+            router.push("/messuopas/osiot");
+            router.refresh();
         } catch (error) {
-            console.error('Error updating subsection:', error);
-            toast.error('Virhe alaosion päivittämisessä');
+            console.error('Error creating subsection:', error);
+            toast.error('Virhe alaosion luomisessa');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleDelete = async () => {
-        if (!confirm(`Haluatko varmasti poistaa alaosion "${subsection?.title}"?`)) {
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-
-            // Delete subsection
-            const { error } = await deleteDocument('main_db', 'initial_subsections', subsectionId);
-
-            if (error) {
-                toast.error('Virhe alaosion poistamisessa');
-                console.error(error);
-                return;
-            }
-
-            // Update parent section to remove subsection reference
-            if (section) {
-                const updatedSubsections = section.initialSubsections.filter(sub => sub.$id !== subsectionId);
-                await updateDocument('main_db', 'initial_sections', section.$id, {
-                    initialSubsections: updatedSubsections.map(sub => sub.$id)
-                });
-            }
-
-            toast.success('Alaosio poistettu onnistuneesti');
-            router.push("/messuopas/admin?tab=osiot");
-        } catch (error) {
-            console.error('Error deleting subsection:', error);
-            toast.error('Virhe alaosion poistamisessa');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     if (loading) {
         return <div className="flex justify-center py-8">Ladataan...</div>;
@@ -155,34 +118,24 @@ export default function EditSubsectionPage() {
 
     return (
         <div className="max-w-7xl p-6 space-y-6">
-            {/* Header */}
             <Button
                 variant="ghost"
-                onClick={() => router.push("/messuopas/admin?tab=osiot")}
+                onClick={() => router.push("/messuopas/osiot")}
                 disabled={isSubmitting}
             >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Takaisin hallintapaneeliin
+                Takaisin
             </Button>
+            {/* Header */}
             <div className="flex items-center justify-between">
 
                 <div className="flex items-center space-x-4">
 
                     <div>
-                        <h1 className="text-2xl font-bold">Muokkaa alaosiota</h1>
-                        <p className="text-gray-600">
-                            Osio: {section?.title || "Tuntematon"}
-                        </p>
+                        <h1 className="text-2xl font-bold">Luo alaosio</h1>
+                        <p className="text-gray-600">Osio: {section?.title}</p>
                     </div>
                 </div>
-                <Button
-                    variant="destructive"
-                    onClick={handleDelete}
-                    disabled={isSubmitting}
-                >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Poista
-                </Button>
             </div>
 
             {/* Form */}
@@ -237,8 +190,7 @@ export default function EditSubsectionPage() {
                         type="submit"
                         disabled={!title.trim() || !html.trim() || isSubmitting}
                     >
-
-                        {isSubmitting ? "Tallennetaan..." : "Tallenna muutokset"}
+                        {isSubmitting ? "Luodaan..." : "Luo"}
                     </Button>
                 </div>
             </form>

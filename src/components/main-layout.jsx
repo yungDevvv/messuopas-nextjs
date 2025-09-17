@@ -8,7 +8,7 @@ import GlobalTools from '@/components/global-tools';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 
-export default function MainLayout({ children, user, events, organizations, privateUsers, activeSubsectionsDocument }) {
+export default function MainLayout({ children, user, events, organizations, privateUsers, activeSubsectionsDocument, sections }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const handleClose = () => setIsMenuOpen(false);
@@ -43,7 +43,7 @@ export default function MainLayout({ children, user, events, organizations, priv
                     <ToolSidebar />
                 {/* </div> */}
 
-                <Sidebar user={user} events={events} organizations={organizations} privateUsers={privateUsers} activeSubsectionsDocument={activeSubsectionsDocument} />
+                <Sidebar user={user} events={events} organizations={organizations} privateUsers={privateUsers} activeSubsectionsDocument={activeSubsectionsDocument} sections={sections} />
 
                 <div className="flex-1 overflow-y-auto">
                     {children}

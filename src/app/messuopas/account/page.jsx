@@ -46,12 +46,13 @@ export default async function AccountPage() {
     const isOrgOwner = Boolean(user?.organization && ownerIds.includes(user.$id));
 
     // Normalize members for client table
-    const members = (organizationMembers || []).map((m) => ({
+    const members = (organizationMembers || []).filter((m) => m.$id !== user.$id && m.role !== "admin").map((m) => ({
         $id: m.$id,
         name: m.name,
         email: m.email,
         role: m.role || "user",
         accessibleEventsIds: m.accessibleEventsIds,
+        activeEventId: m.activeEventId
     }));
 
     const clientProps = {
