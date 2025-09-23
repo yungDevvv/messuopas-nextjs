@@ -200,7 +200,7 @@ export default function CollaboratorsTab() {
                             <CardContent>
                                 <div className="mb-4">
                                     <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
-                                        {collaborator.description || 'Ei kuvausta saatavilla.'}
+                                        {collaborator.description || '-'}
                                     </p>
                                 </div>
 

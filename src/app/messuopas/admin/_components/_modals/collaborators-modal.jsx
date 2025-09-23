@@ -9,6 +9,9 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronDown } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +23,7 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
     const [logoFile, setLogoFile] = useState(null);
     const [logoPreview, setLogoPreview] = useState(null);
     const [selectedInitialSection, setSelectedInitialSection] = useState(null);
-    const [selectedSubSection, setSelectedSubSection] = useState(null);
+    const [selectedSubSections, setSelectedSubSections] = useState([]);
     const isEditing = !!selectedCollaborator;
     const { sections } = useAppContext();
 
@@ -56,34 +59,19 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                 setSelectedInitialSection(initSectionObj || null);
                 setValue('initialSection', initSectionId);
                 
-                // Find and set sub section object
-                const subSectionId = selectedCollaborator?.subSection?.$id || selectedCollaborator?.subSection || "";
-                let subSectionObj = null;
-                
-                if (subSectionId) {
-                    // If subSection is already an object, use it directly
-                    if (selectedCollaborator?.subSection && typeof selectedCollaborator.subSection === 'object' && selectedCollaborator.subSection.$id) {
-                        subSectionObj = selectedCollaborator.subSection;
+                // Handle subSections array
+                let subSectionsArray = [];
+                if (selectedCollaborator?.subSection) {
+                    if (Array.isArray(selectedCollaborator.subSection)) {
+                        subSectionsArray = selectedCollaborator.subSection;
                     } else {
-                        // Search in current section's subsections first
-                        if (initSectionObj?.initialSubsections) {
-                            subSectionObj = initSectionObj.initialSubsections.find(sub => sub.$id === subSectionId);
-                        }
-                        
-                        // If not found in current section, search in all sections
-                        if (!subSectionObj && sections) {
-                            for (const section of sections) {
-                                if (section.initialSubsections) {
-                                    subSectionObj = section.initialSubsections.find(sub => sub.$id === subSectionId);
-                                    if (subSectionObj) break;
-                                }
-                            }
-                        }
+                        // Convert single subSection to array for backwards compatibility
+                        subSectionsArray = [selectedCollaborator.subSection];
                     }
                 }
                 
-                setSelectedSubSection(subSectionObj || null);
-                setValue('subSection', subSectionId);
+                setSelectedSubSections(subSectionsArray);
+                setValue('subSection', subSectionsArray.map(sub => sub.$id || sub));
                 
                 // Set logo preview if exists
                 if (selectedCollaborator.logo) {
@@ -94,7 +82,7 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                 setLogoFile(null);
                 setLogoPreview(null);
                 setSelectedInitialSection(null);
-                setSelectedSubSection(null);
+                setSelectedSubSections([]);
             }
         }
     }, [open, selectedCollaborator, setValue, reset, sections]);
@@ -105,15 +93,15 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
             setLogoFile(null);
             setLogoPreview(null);
             setSelectedInitialSection(null);
-            setSelectedSubSection(null);
+            setSelectedSubSections([]);
         }
     }, [open, reset]);
 
     // Reset subSection when initialSection changes
     useEffect(() => {
         if (selectedInitialSection && !selectedCollaborator) {
-            setSelectedSubSection(null);
-            setValue('subSection', "");
+            setSelectedSubSections([]);
+            setValue('subSection', []);
         }
     }, [selectedInitialSection, setValue, selectedCollaborator]);
 
@@ -139,15 +127,21 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                 logoUrl = fileData.$id;
             }
 
+            // Prepare subSection IDs array
+            const subSectionIds = selectedSubSections.map(sub => sub.$id || sub);
+
+            // Prepare contact_email - send null if empty string
+            const contactEmail = data.contact_email?.trim() === '' ? null : data.contact_email;
+
             if (isEditing) {
                 await updateDocument('main_db', 'collobarators', selectedCollaborator.$id, {
                     name: data.name,
                     web: data.web,
                     description: data.description,
-                    contact_email: data.contact_email,
+                    contact_email: contactEmail,
                     contact_name: data.contact_name,
                     initialSection: data.initialSection,
-                    subSection: data.subSection,
+                    subSection: subSectionIds,
                     logo: logoUrl,
                 });
             } else {
@@ -156,10 +150,10 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                         name: data.name,
                         web: data.web,
                         description: data.description,
-                        contact_email: data.contact_email,
+                        contact_email: contactEmail,
                         contact_name: data.contact_name,
                         initialSection: data.initialSection,
-                        subSection: data.subSection,
+                        subSection: subSectionIds,
                         logo: logoUrl,
                     }
                 });
@@ -175,11 +169,6 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
             setLoading(false);
         }
     };
-    
-    console.log("selectedSubSection", selectedSubSection);
-    console.log("selectedInitialSection", selectedInitialSection);
-    console.log("availableSubSections", availableSubSections);
-    console.log("selectedCollaborator", selectedCollaborator);
      
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -267,45 +256,79 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                         )}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="subSection">Ali-osio</Label>
-                        <Select
-                            value={selectedSubSection?.$id || ""}
-                            onValueChange={(val) => {
-                                const subSectionObj = availableSubSections?.find(sub => sub.$id === val);
-                                setSelectedSubSection(subSectionObj || null);
-                                setValue('subSection', val);
-                            }}
-                            disabled={!selectedInitialSection || availableSubSections.length === 0}
-                        >
-                           
-                            {console.log("ASDAS123123DASD", availableSubSections)}
-                            {console.log("ASDAS123112312312312312323DASD", selectedSubSection)}
-                            <SelectTrigger className="w-full !h-10">
-                                <SelectValue 
-                                    placeholder={
-                                        !selectedInitialSection 
-                                            ? "Valitse ensin osio" 
-                                            : availableSubSections.length === 0 
-                                                ? "Ei ali-osioita saatavilla" 
-                                                : "Valitse ali-osio"
-                                    } 
-                                />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availableSubSections?.map((subSection) => (
-                                    <SelectItem key={subSection.$id} value={subSection.$id}>
-                                        {subSection.title}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Label htmlFor="subSection">Ali-osiot</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={`w-full justify-between h-10 ${!selectedInitialSection || availableSubSections.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={!selectedInitialSection || availableSubSections.length === 0}
+                                >
+                                    <span className="truncate font-normal">
+                                        {selectedSubSections.length === 0
+                                            ? (!selectedInitialSection 
+                                                ? "Valitse ensin osio" 
+                                                : availableSubSections.length === 0 
+                                                    ? "Ei ali-osioita saatavilla" 
+                                                    : "Valitse ali-osiot")
+                                            : selectedSubSections.length === 1
+                                                ? selectedSubSections[0].title
+                                                : `${selectedSubSections.length} ali-osiota valittu`
+                                        }
+                                    </span>
+                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-1 max-w-md" align="start">
+                                <div className="max-h-80 overflow-auto">
+                                    {availableSubSections.length === 0 ? (
+                                        <div className="p-4 text-sm text-gray-500 text-center">
+                                            Ei ali-osioita saatavilla
+                                        </div>
+                                    ) : (
+                                        <div className="p-2 space-y-1">
+                                            {availableSubSections.map((subSection) => {
+                                                const isSelected = selectedSubSections.some(selected => selected.$id === subSection.$id);
+                                                return (
+                                                    <div
+                                                        key={subSection.$id}
+                                                        className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-md cursor-pointer"
+                                                        onClick={() => {
+                                                            let newSelected;
+                                                            if (isSelected) {
+                                                                // Remove from selection
+                                                                newSelected = selectedSubSections.filter(selected => selected.$id !== subSection.$id);
+                                                            } else {
+                                                                // Add to selection
+                                                                newSelected = [...selectedSubSections, subSection];
+                                                            }
+                                                            setSelectedSubSections(newSelected);
+                                                            setValue('subSection', newSelected.map(sub => sub.$id));
+                                                        }}
+                                                    >
+                                                        
+                                                        <span className="text-sm flex-1">{subSection.title}</span>
+                                                        <Checkbox
+                                                            checked={isSelected}
+                                                            onChange={() => {}} // Handled by parent div onClick
+                                                            className="ml-14"
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                         <input
                             type="hidden"
                             {...register('subSection', { required: availableSubSections.length > 0 })}
-                            value={selectedSubSection?.$id || ""}
+                            value={JSON.stringify(selectedSubSections.map(sub => sub.$id))}
                         />
                         {errors.subSection && availableSubSections.length > 0 && (
-                            <span className="text-red-500 text-sm">Ali-osio on pakollinen</span>
+                            <span className="text-red-500 text-sm">Vähintään yksi ali-osio on pakollinen</span>
                         )}
                     </div>
 
@@ -329,7 +352,7 @@ export default function CollaboratorModal({ open, onOpenChange, selectedCollabor
                                     </Button>
                                 </div>
                             )}
-                            <input
+                            <Input
                                 id="logo"
                                 type="file"
                                 accept="image/*"

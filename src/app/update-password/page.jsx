@@ -6,11 +6,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Eye, EyeOff } from "lucide-react";
+import { KeyRound, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { updateRecoveryPassword } from "@/lib/appwrite/server";
 
 // Loading fallback component
-function RegisterPageFallback() {
+function UpdatePasswordPageFallback() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8">
@@ -23,14 +24,14 @@ function RegisterPageFallback() {
     );
 }
 
-// Main register form component that uses useSearchParams
-function RegisterForm() {
+// Main update password form component that uses useSearchParams
+function UpdatePasswordForm() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const token = searchParams.get('token');
+    const secret = searchParams.get('secret');
+    const userId = searchParams.get('userId');
     
     const [formData, setFormData] = useState({
-        name: '',
         password: '',
         confirmPassword: ''
     });
@@ -39,11 +40,11 @@ function RegisterForm() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     useEffect(() => {
-        if (!token) {
-            toast.error("Virheellinen kutsulinkki");
+        if (!secret || !userId) {
+            toast.error("Virheellinen salasanan palautuslinkki");
             router.push('/login');
         }
-    }, [token, router]);
+    }, [secret, userId, router]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -61,29 +62,19 @@ function RegisterForm() {
         setLoading(true);
 
         try {
-            const response = await fetch('/api/invite/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    token,
-                    password: formData.password,
-                    name: formData.name
-                }),
-            });
+            const { error, success } = await updateRecoveryPassword(secret, userId, formData.password);
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'Rekisteröinti epäonnistui');
+            if (error) {
+                throw new Error(error.message || 'Salasanan päivitys epäonnistui');
             }
 
-            toast.success("Rekisteröinti onnistui! Voit nyt kirjautua sisään.");
-            router.push('/login');
+            if (success) {
+                toast.success("Salasana päivitetty onnistuneesti! Voit nyt kirjautua sisään uudella salasanalla.");
+                router.push('/login');
+            }
         } catch (error) {
-            console.error('Registration error:', error);
-            toast.error(error.message || 'Rekisteröinti epäonnistui');
+            console.error('Password update error:', error);
+            toast.error(error.message || 'Salasanan päivitys epäonnistui');
         } finally {
             setLoading(false);
         }
@@ -96,7 +87,7 @@ function RegisterForm() {
         }));
     };
 
-    if (!token) {
+    if (!secret || !userId) {
         return null;
     }
 
@@ -105,36 +96,24 @@ function RegisterForm() {
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
                     <h2 className="mt-6 text-3xl font-bold text-gray-900">
-                        Viimeistele rekisteröinti
+                        Aseta uusi salasana
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
-                        Sinut on kutsuttu liittymään organisaatioon
+                        Syötä uusi salasana tilillesi
                     </p>
                 </div>
 
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <UserPlus className="w-5 h-5" />
-                            Tilin luominen
+                            <KeyRound className="w-5 h-5" />
+                            Salasanan päivitys
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
-                                <Label htmlFor="name">Koko nimi</Label>
-                                <Input
-                                    id="name"
-                                    type="text"
-                                    required
-                                    value={formData.name}
-                                    onChange={(e) => handleInputChange('name', e.target.value)}
-                                    className="mt-1"
-                                />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="password">Salasana</Label>
+                                <Label htmlFor="password">Uusi salasana</Label>
                                 <div className="relative mt-1">
                                     <Input
                                         id="password"
@@ -160,7 +139,7 @@ function RegisterForm() {
                             </div>
 
                             <div>
-                                <Label htmlFor="confirmPassword">Vahvista salasana</Label>
+                                <Label htmlFor="confirmPassword">Vahvista uusi salasana</Label>
                                 <div className="relative mt-1">
                                     <Input
                                         id="confirmPassword"
@@ -168,7 +147,7 @@ function RegisterForm() {
                                         required
                                         value={formData.confirmPassword}
                                         onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                                        placeholder="Toista salasana"
+                                        placeholder="Toista uusi salasana"
                                         className="pr-10"
                                     />
                                     <button
@@ -188,9 +167,9 @@ function RegisterForm() {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                disabled={loading || !formData.name || !formData.password || !formData.confirmPassword}
+                                disabled={loading || !formData.password || !formData.confirmPassword}
                             >
-                                {loading ? "Rekisteröidään..." : "Viimeistele rekisteröinti"}
+                                {loading ? "Päivitetään..." : "Päivitä salasana"}
                             </Button>
                         </form>
                     </CardContent>
@@ -201,10 +180,10 @@ function RegisterForm() {
 }
 
 // Main page component wrapped in Suspense
-export default function RegisterPage() {
+export default function UpdatePasswordPage() {
     return (
-        <Suspense fallback={<RegisterPageFallback />}>
-            <RegisterForm />
+        <Suspense fallback={<UpdatePasswordPageFallback />}>
+            <UpdatePasswordForm />
         </Suspense>
     );
 }

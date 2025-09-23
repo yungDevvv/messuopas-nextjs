@@ -25,8 +25,10 @@ export default async function Layout({ children }) {
         const { data: privateUsersData, error: privateUsersError } = await listDocuments('main_db', 'users', [
             Query.isNull('organization')
         ]);
+        
         if (organizationsError) console.error(organizationsError);
         if (privateUsersError) console.error(privateUsersError);
+
         organizations = data;
         privateUsers = privateUsersData;
     }
@@ -69,84 +71,186 @@ export default async function Layout({ children }) {
         );
     }
 
-    // Get active subsections for current user and active event
-    let activeSubsectionPaths = [];
+    // Get user section preferences for ordering and active states
+    let userSectionPreferences = null;
+    try {
+        const preferencesQuery = [];
+        
+        // Only user + event are the key variables now
+        preferencesQuery.push(Query.equal('user', user.$id));
+        
+        if (user?.activeEventId) {
+            preferencesQuery.push(Query.equal('event', user.activeEventId));
+        }
 
-    const { data: activeSubsections, error: activeSubsectionsError } = await listDocuments('main_db', 'active_event_subsections', [
-        Query.equal('userId', user.$id),
-        Query.equal('eventId', user.activeEventId)
-    ]);
-
-    if (activeSubsections && activeSubsections.length > 0) {
-        activeSubsectionPaths = activeSubsections[0].activeSubsections || [];
+        const { data: preferencesData } = await listDocuments('main_db', 'user_section_preferences', preferencesQuery);
+        userSectionPreferences = preferencesData?.[0] || null;
+        
+        console.log('Sidebar - User section preferences:', userSectionPreferences);
+    } catch (preferencesError) {
+        console.error('Error fetching user section preferences:', preferencesError);
     }
 
 
 
-    // Process sections and mark subsections as active based on Appwrite data
-    const orderedSections = data.sort((a, b) => a.order - b.order).map(section => ({
-        ...section,
-        initialSubsections: section.initialSubsections?.map(subsection => {
-            return {
-                ...subsection,
-                isActive: activeSubsections?.length > 0 ? activeSubsectionPaths.includes(subsection.$id) : true
-            };
-        }) || []
-    }));
 
-    // Fetch additional sections for organization and for private user, then merge
+    // Fetch additional sections for current user and event (same logic as dashboard)
     let additionalSections = [];
-
-    // Organization-level additional sections (visible to members)
-    if (user.organization?.$id) {
-        const { data: orgAdditional, error: orgAddErr } = await listDocuments('main_db', 'additional_sections', [
-            Query.equal('organization', user.organization.$id)
-        ]);
-        if (!orgAddErr && Array.isArray(orgAdditional)) {
-            additionalSections = additionalSections.concat(orgAdditional);
-        }
+    
+    const sectionsQuery = [];
+    if (user?.organization) {
+        sectionsQuery.push(Query.equal('organization', user.organization.$id));
+        sectionsQuery.push(Query.equal('eventId', user.activeEventId));
+    } else {
+        sectionsQuery.push(Query.equal('user', user.$id));
+        sectionsQuery.push(Query.equal('eventId', user.activeEventId));
     }
 
-    // Private user additional sections
-    {
-        const { data: userAdditional, error: userAddErr } = await listDocuments('main_db', 'additional_sections', [
-            Query.equal('user', user.$id)
-        ]);
-        if (!userAddErr && Array.isArray(userAdditional)) {
-            // Avoid duplicates if any
-            const existing = new Set(additionalSections.map(s => s.$id));
-            additionalSections = additionalSections.concat(userAdditional.filter(s => !existing.has(s.$id)));
-        }
+    const { data: additionalSectionsData, error: additionalSectionsError } = await listDocuments('main_db', 'additional_sections', sectionsQuery);
+    
+    if (!additionalSectionsError && Array.isArray(additionalSectionsData)) {
+        additionalSections = additionalSectionsData;
     }
 
-    // Normalize additional sections to the same shape used by Sidebar and mark ownership
-    // Use `additionalSubsections` as source and expose them under `initialSubsections`
-    const normalizedAdditionalSections = additionalSections.map((s, idx) => ({
-        ...s,
-        initialSubsections: Array.isArray(s.additionalSubsections)
-            ? s.additionalSubsections.map(sub => {
-                // sub can be an object (expanded doc) or a string (relation id)
-                if (typeof sub === 'string') {
-                    return {
-                        $id: sub,
-                        path: sub,
-                        isActive: true,
-                    };
-                }
-                return {
+    // Combine initial and additional sections with preferences logic (same as dashboard)
+    const combineAllSections = () => {
+        const allSections = [];
+
+        // Add initial sections with type marker
+        (data || []).forEach(section => {
+            allSections.push({
+                ...section,
+                type: 'initial',
+                subsections: section.initialSubsections || []
+            });
+        });
+
+        // Add additional sections with type marker
+        (additionalSections || []).forEach(section => {
+            allSections.push({
+                ...section,
+                type: 'additional',
+                subsections: section.additionalSubsections || [],
+                isAdditional: true
+            });
+        });
+
+        // If no preferences found, return sections in default order
+        if (!userSectionPreferences || !userSectionPreferences.orderedActiveSections) {
+            console.log('Sidebar - No user preferences found for combined sections, using default order');
+            return allSections.sort((a, b) => (a.order || 0) - (b.order || 0)).map(section => ({
+                ...section,
+                initialSubsections: (section.subsections || []).map(sub => ({
                     ...sub,
-                    $id: sub.$id,
-                    path: sub.path,
-                    isActive: true,
-                };
-            })
-            : [],
-        isAdditional: true,
-        ownerType: s.organization && !s.user ? 'organization' : 'user'
-    }));
+                    isActive: true // Default to active
+                }))
+            }));
+        }
 
-    // Combine initial and additional sections (additional appended at the end)
-    const allSections = [...orderedSections, ...normalizedAdditionalSections];
+        // Parse ordered sections from preferences
+        let orderedSectionsData = [];
+        try {
+            orderedSectionsData = JSON.parse(userSectionPreferences.orderedActiveSections);
+        } catch (e) {
+            console.error('Sidebar - Error parsing orderedActiveSections for combined sections:', e);
+            return allSections.sort((a, b) => (a.order || 0) - (b.order || 0)).map(section => ({
+                ...section,
+                initialSubsections: (section.subsections || []).map(sub => ({
+                    ...sub,
+                    isActive: true
+                }))
+            }));
+        }
+
+        // Order sections based on preferences
+        const orderedSections = [];
+        const unorderedSections = [...allSections];
+
+        // Sort by order from preferences
+        orderedSectionsData
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .forEach(sectionPref => {
+                const sectionIndex = unorderedSections.findIndex(s => s.$id === sectionPref.id);
+                if (sectionIndex !== -1) {
+                    const section = unorderedSections.splice(sectionIndex, 1)[0];
+                    
+                    // Apply subsection ordering and active state
+                    if (sectionPref.subsections && Array.isArray(sectionPref.subsections)) {
+                        const orderedSubsections = [];
+                        const unorderedSubsections = [...(section.subsections || [])];
+                        
+                        // Order subsections based on preferences
+                        sectionPref.subsections
+                            .sort((a, b) => (a.order || 0) - (b.order || 0))
+                            .forEach(subPref => {
+                                const subIndex = unorderedSubsections.findIndex(sub => sub.$id === subPref.id);
+                                if (subIndex !== -1) {
+                                    const subsection = unorderedSubsections.splice(subIndex, 1)[0];
+                                    orderedSubsections.push({
+                                        ...subsection,
+                                        isActive: subPref.active !== false
+                                    });
+                                }
+                            });
+                        
+                        // Add any remaining subsections that weren't in preferences
+                        orderedSubsections.push(...unorderedSubsections.map(sub => ({
+                            ...sub,
+                            isActive: true
+                        })));
+                        
+                        section.initialSubsections = orderedSubsections;
+                    } else {
+                        // No subsection preferences, default all to active
+                        section.initialSubsections = (section.subsections || []).map(sub => ({
+                            ...sub,
+                            isActive: true
+                        }));
+                    }
+                    
+                    orderedSections.push(section);
+                }
+            });
+
+        // Add any remaining sections that weren't in preferences
+        unorderedSections.forEach(section => {
+            const sectionPref = orderedSectionsData.find(pref => pref.id === section.$id);
+            if (sectionPref && sectionPref.subsections && Array.isArray(sectionPref.subsections)) {
+                const orderedSubsections = [];
+                const unorderedSubsections = [...(section.subsections || [])];
+
+                sectionPref.subsections
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .forEach(subPref => {
+                        const subIndex = unorderedSubsections.findIndex(sub => sub.$id === subPref.id);
+                        if (subIndex !== -1) {
+                            const subsection = unorderedSubsections.splice(subIndex, 1)[0];
+                            orderedSubsections.push({
+                                ...subsection,
+                                isActive: subPref.active !== false
+                            });
+                        }
+                    });
+
+                orderedSubsections.push(...unorderedSubsections.map(sub => ({
+                    ...sub,
+                    isActive: true
+                })));
+                section.initialSubsections = orderedSubsections;
+            } else {
+                section.initialSubsections = (section.subsections || []).map(sub => ({
+                    ...sub,
+                    isActive: true
+                }));
+            }
+            orderedSections.push(section);
+        });
+
+        return orderedSections;
+    };
+
+    // Use the combined sections logic
+    const allSections = combineAllSections();
 
     return (
         <AppProvider initialUser={user} initialSections={allSections} initialEvents={events}>
@@ -156,7 +260,6 @@ export default async function Layout({ children }) {
                 events={events}
                 organizations={organizations}
                 privateUsers={privateUsers}
-                activeSubsectionsDocument={activeSubsections?.[0]}
                 sections={allSections}
             >
                 {children}

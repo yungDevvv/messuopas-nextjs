@@ -1,5 +1,5 @@
 import NotesView from '@/app/messuopas/[sectionPath]/[subsectionPath]/notes/_components/notes-client-page';
-import { getLoggedInUser, getNotesFromInitialSection } from '@/lib/appwrite/server';
+import { getLoggedInUser, getNotesFromInitialSection, getNotesFromAdditionalSection } from '@/lib/appwrite/server';
 import Breadcrumbs from '@/components/breadcrumbs';
 
 // This is a Server Component
@@ -9,7 +9,7 @@ export default async function NotesPage({ params }) {
     const user = await getLoggedInUser();
 
     const { data, error } = await getNotesFromInitialSection(subsectionPath, user.activeEventId);
-    
+    const { data: additionalSectionNotes, error: additionalSectionError } = await getNotesFromAdditionalSection(subsectionPath, user.activeEventId);
     if (error) {
         console.log(error)
         return (
@@ -24,7 +24,7 @@ export default async function NotesPage({ params }) {
             <p className="text-gray-600 mb-6">Tähän tulee muistiinpanot liittyen tähän osioon.</p>
 
             {/* Render the Client Component and pass initial data to it */}
-            <NotesView notes={data} subsectionId={subsectionPath} />
+            <NotesView notes={data?.length > 0 ? data : additionalSectionNotes?.length > 0 ? additionalSectionNotes : []} subsectionId={subsectionPath} />
         </div>
     );
 }

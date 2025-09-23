@@ -54,8 +54,9 @@ export default function DocumentsClientPage({ documents, subsectionId }) {
     const [tab, setTab] = useState(1);
     const [isUploading, setIsUploading] = useState(false);
     const router = useRouter();
-    const { user } = useAppContext();
-
+    const { user, currentSubSection } = useAppContext();
+    console.log(currentSubSection, "currentSubSectioncurrentSubSection12312")
+    const isAdditionalSection = currentSubSection?.$collectionId === "additional_subsections";
     const form = useForm({
         resolver: zodResolver(documentSchema),
         defaultValues: {
@@ -84,16 +85,21 @@ export default function DocumentsClientPage({ documents, subsectionId }) {
 
             const document_id = data.$id;
 
+            const body = {
+                file_id: document_id,
+                name: values.name,
+                description: values.description || '',
+                event: user.activeEventId
+            }
+
+            if (isAdditionalSection) {
+                body.additionalSubsection = currentSubSection.$id
+            } else {
+                body.initialSubsection = currentSubSection.$id
+            }
+
             // Create document record in database with name and description
-            await createDocument("main_db", "documents", {
-                body: {
-                    file_id: document_id,
-                    name: values.name,
-                    description: values.description || '',
-                    initialSubsectionId: subsectionId,
-                    event: user.activeEventId
-                }
-            });
+            await createDocument("main_db", "documents", { body });
 
             toast.success(`Dokumentti ${values.name} ladattu onnistuneesti!`);
             form.reset(); // Reset form
@@ -337,7 +343,7 @@ export default function DocumentsClientPage({ documents, subsectionId }) {
                                                         <div>Muokattu: {format(new Date(file.$updatedAt), 'dd.MM.yyyy HH:mm')}</div>
                                                     )}
                                                 </div>
-                                               
+
                                                 {file.user && (
                                                     <div className="text-xs text-gray-500">
                                                         Luoja: {file.user.name || file.user.email}

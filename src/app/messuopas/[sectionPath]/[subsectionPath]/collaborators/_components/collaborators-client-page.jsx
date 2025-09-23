@@ -1,16 +1,25 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Building2, Mail, Globe } from "lucide-react";
+import { Building2, Mail, Globe, Users, Handshake } from "lucide-react";
 import Link from "next/link";
 import SVGComponent from "@/components/svg-image";
+import { useState } from "react";
 
-export default function CollaboratorsClientPage({ collaborators, subsectionData, sectionData, allInitialSectionCollaborators }) {
+export default function CollaboratorsClientPage({ collaborators, sectionData, allInitialSectionCollaborators, currentSubSectionData, allSectionCollaborators }) {
+    // State for switching between subsection and section view
+    const [showAllSection, setShowAllSection] = useState(false);
+    
     // Collaborators are already filtered by subsection in the parent component
     const subsectionCollaborators = collaborators || [];
-    const sectionFallback = allInitialSectionCollaborators || [];
+    const sectionFallback = allSectionCollaborators || []; // Use section collaborators as fallback
     const totalCollaborators = subsectionCollaborators?.length || 0;
-
+    
+    // Determine which collaborators to show and current context
+    const displayCollaborators = showAllSection ? sectionFallback : subsectionCollaborators;
+    const currentContext = showAllSection ? sectionData : currentSubSectionData?.title;
+    const hasSubsectionCollaborators = totalCollaborators > 0;
+    
     // Format slugs: decode, replace dashes with spaces, capitalize first letter
     // This improves readability for values coming from URL params
     const formatLabel = (value) => {
@@ -19,12 +28,43 @@ export default function CollaboratorsClientPage({ collaborators, subsectionData,
         const spaced = decoded.replace(/-/g, " ");
         return spaced.charAt(0).toUpperCase() + spaced.slice(1);
     };
-
+    
     return (
         <div className="space-y-6">
-            {totalCollaborators > 0 ? (
+            {/* Dynamic Header */}
+            <div className="space-y-2">
+                <h1 className="text-2xl font-bold">
+                    Yhteistyökumppanit - {formatLabel(currentContext)}
+                </h1>
+                
+                {/* Toggle Button - only show if subsection has collaborators */}
+                {hasSubsectionCollaborators && (
+                    <Button
+                        variant="ghost"
+                        onClick={() => setShowAllSection(!showAllSection)}
+                        className="flex items-center gap-2"
+                    >
+                        <Handshake className="w-4 h-4" />
+                        {showAllSection 
+                            ? `Näytä vain "${formatLabel(currentSubSectionData?.title)}" -aliosion kumppanit`
+                            : `Näytä kaikki "${formatLabel(sectionData)}"-osion yhteistyökumppanit`
+                        }
+                    </Button>
+                )}
+            </div>
+            
+            {/* Description */}
+            <p className="text-gray-600 !mb-3">
+                {showAllSection 
+                    ? `Kaikki yhteistyökumppanit osiosta "${formatLabel(sectionData)}".`
+                    : hasSubsectionCollaborators 
+                        ? `Yhteistyökumppanit aliosiosta "${formatLabel(currentSubSectionData?.title)}".`
+                        : ``
+                }
+            </p>
+            {displayCollaborators?.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-                    {subsectionCollaborators.map((collaborator) => (
+                    {displayCollaborators.map((collaborator) => (
                         <div
                             key={collaborator.$id}
                             className="group flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-1 h-[420px] overflow-hidden"
@@ -62,7 +102,7 @@ export default function CollaboratorsClientPage({ collaborators, subsectionData,
                                             <span>{collaborator.contact_name}</span>
                                         </div>
                                     )}
-                                    
+
                                     {collaborator.contact_email && (
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <Mail className="w-4 h-4 text-gray-400" />
@@ -101,7 +141,7 @@ export default function CollaboratorsClientPage({ collaborators, subsectionData,
                     {sectionFallback?.length > 0 ? (
                         <>
                             {/* subtle hint instead of explicit empty-state */}
-                            <div className="text-sm text-gray-500 py-1 px-1">Ei löytynyt aliosiosta "{formatLabel(subsectionData)}" – näytetään kaikki yhteistyökumppanit osiosta <span className="font-semibold">"{formatLabel(sectionData)}"</span>.</div>
+                            <div className="text-sm text-gray-500 py-1 px-1">Ei löytynyt aliosiosta "{formatLabel(currentSubSectionData?.title)}" – näytetään kaikki yhteistyökumppanit osiosta <span className="font-semibold">"{formatLabel(sectionData)}"</span>.</div>
                             <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
                                 {sectionFallback.map((collaborator) => (
                                     <div

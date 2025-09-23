@@ -12,21 +12,19 @@ import { useSidebarStore } from '@/stores/sidebar-store';
 import { NavUser } from './nav-user';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useModal } from '@/hooks/use-modal';
-import { updateDocument, createDocument, listDocuments } from '@/lib/appwrite/server';
-import { Query } from 'node-appwrite';
+import { updateDocument } from '@/lib/appwrite/server';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-function Sidebar({ events, user, organizations = [], privateUsers = [], activeSubsectionsDocument, sections: sectionsFromProps }) {
-    const { setSections: setSectionsInContext } = useAppContext();
-    
+function Sidebar({ events, user, organizations = [], privateUsers = [], sections }) {
+    const { setSections: setSectionsInContext, setCurrentSection, setCurrentSubSection } = useAppContext();
+
     const { isCollapsed } = useSidebarStore();
     const pathname = usePathname();
     const { onOpen } = useModal();
     const [isEditing, setIsEditing] = useState(false);
 
-    // Internal state for sections, synced with props
-    const [sections, setSections] = useState(sectionsFromProps || []);
+    // Use sections directly from props (already processed in layout.jsx)
     const [preEditSections, setPreEditSections] = useState(null);
     const [activeEventId, setActiveEventId] = useState(user.activeEventId);
     // Admin-only: selected owner to filter events (organization or user without organization)
@@ -41,13 +39,12 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
     const router = useRouter();
     // No need for localStorage anymore - data comes with isActive from layout
 
-    // Sync internal state with props from server (layout)
+    // Keep context in sync for other components
     useEffect(() => {
-        if (sectionsFromProps) {
-            setSections(sectionsFromProps);
-            setSectionsInContext(sectionsFromProps); // Keep context in sync for other components
+        if (sections) {
+            setSectionsInContext(sections);
         }
-    }, [sectionsFromProps, setSectionsInContext]);
+    }, [sections, setSectionsInContext]);
 
     // Initialize owner selection from current user
     useEffect(() => {
@@ -72,88 +69,6 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
         setActiveEventId(nextId);
     }, [user?.activeEventId]);
 
-
-    // Function to toggle subsection's isActive status
-    const handleSubsectionToggle = (sectionIndex, subIndex) => {
-        // In edit mode, only update the temporary state
-        const newSections = JSON.parse(JSON.stringify(sections));
-        const subsection = newSections[sectionIndex].initialSubsections[subIndex];
-        subsection.isActive = !subsection.isActive;
-        setSections(newSections);
-        setSectionsInContext(newSections);
-    };
-
-    const handleSaveChanges = async () => {
-        // 1. Save to Appwrite
-        const activeSubsectionPaths = sections
-            .flatMap(section =>
-                section.initialSubsections?.map(sub => ({
-                    sectionId: section.$id,
-                    subsectionId: sub.$id,
-                    isActive: sub.isActive
-                })) || []
-            )
-            .filter(sub => sub.isActive)
-            .map(sub => sub.subsectionId);
-
-        if (!activeSubsectionsDocument?.$id) {
-            const { error } = await createDocument('main_db', 'active_event_subsections', {
-                body: {
-                    eventId: activeEventId,
-                    userId: user.$id,
-                    activeSubsections: activeSubsectionPaths
-                }
-            });
-
-            if (error) {
-                console.log(error);
-                toast.error("Tapahtui virhe.")
-                return;
-            }
-            router.refresh();
-            toast.success("Osiot tallennettu onnistuneesti!")
-            setIsEditing(false);
-            setPreEditSections(null); // Clear the pre-edit state
-            return;
-        }
-
-
-        const { error } = await updateDocument('main_db', 'active_event_subsections', activeSubsectionsDocument.$id, {
-            activeSubsections: activeSubsectionPaths
-        });
-
-        if (error) {
-            console.log(error);
-            toast.error("Tapahtui virhe.")
-            return;
-        }
-
-        setIsEditing(false);
-        setPreEditSections(null); // Clear the pre-edit state
-        toast.success("Osiot tallennettu onnistuneesti!")
-    };
-
-    const handleCancelEdit = () => {
-        // Revert to the state before editing began
-        if (preEditSections) {
-            setSections(preEditSections);
-            setSectionsInContext(preEditSections);
-        }
-        setIsEditing(false);
-        setPreEditSections(null);
-    };
-
-    const handleToggleEditMode = () => {
-        if (isEditing) {
-            // This button now acts as a cancel button if already editing
-            handleCancelEdit();
-        } else {
-            // Entering edit mode
-            setPreEditSections(JSON.parse(JSON.stringify(sections))); // Save current state for potential cancel
-            setIsEditing(true);
-        }
-    }
-
     const handleEventChange = async (eventId) => {
         setActiveEventId(eventId);
 
@@ -169,40 +84,6 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
         window.location.reload();
     }
 
-    // Fetch and apply additional sections for selected owner (org or user)
-    const refreshAdditionalSectionsForOwner = async (owner) => {
-        // line comment: separate base and additional
-        const baseSections = (sections || []).filter(s => !s.isAdditional);
-        try {
-            const queries = owner.type === 'org'
-                ? [Query.equal('organization', owner.id)]
-                : [Query.equal('user', owner.id)];
-            const { data: additional, error } = await listDocuments('main_db', 'additional_sections', queries);
-            if (error) {
-                console.error(error);
-                return;
-            }
-            const normalizedAdditionalSections = (additional || []).map((s) => ({
-                ...s,
-                initialSubsections: Array.isArray(s.additionalSubsections)
-                    ? s.additionalSubsections.map(sub => {
-                        if (typeof sub === 'string') {
-                            return { $id: sub, path: sub, isActive: true };
-                        }
-                        return { ...sub, $id: sub.$id, path: sub.path, isActive: true };
-                    })
-                    : [],
-                isAdditional: true,
-                ownerType: s.organization && !s.user ? 'organization' : 'user'
-            }));
-
-            const merged = [...baseSections, ...normalizedAdditionalSections];
-            setSections(merged);
-            setSectionsInContext(merged);
-        } catch (e) {
-            console.error(e);
-        }
-    };
 
     return (
         <div className={cn(
@@ -228,7 +109,6 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                     await updateDocument("main_db", "users", user.$id, { organization: id, activeUserId: null }); // line comment: set org and clear activeUserId
                                     toast.success("Organisaatio käyttäjälle on päivitetty");
                                     router.refresh();
-                                    await refreshAdditionalSectionsForOwner({ type, id }); // line comment: refresh sections immediately
                                     // Auto-select first event for this organization
                                     let filtered = Array.isArray(events) ? events : [];
                                     filtered = filtered.filter(e => {
@@ -249,7 +129,6 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                     await updateDocument("main_db", "users", user.$id, { organization: null, activeUserId: id }); // line comment: detach organization and set activeUserId
                                     toast.success("Käyttäjän aktiivinen käyttäjä on asetettu ja organisaatio poistettu"); // line comment: success toast
                                     router.refresh(); // line comment: refresh view
-                                    await refreshAdditionalSectionsForOwner({ type, id }); // line comment: refresh sections immediately
                                     // Auto-select first event for this user
                                     let filtered = Array.isArray(events) ? events : [];
                                     filtered = filtered.filter(e => {
@@ -290,7 +169,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
             )}
             {/* Header with collapse button */}
             <div className={cn("flex items-center justify-end p-2 gap-2 border-b shrink-0", !isEditing && "justify-between")}>
-                
+
                 {(user.role === "admin" || user.role === "premium_user" || user.role === "customer_admin") && !isEditing && (
                     <Select value={activeEventId} onValueChange={handleEventChange}>
                         {console.log(activeEventId, "events123123123")}
@@ -335,21 +214,8 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                     </Select>
                 )}
                 <div className={cn("flex w-full items-center justify-between gap-2 transition-opacity duration-100", isCollapsed && "opacity-0", !isEditing && "w-fit", isEditing && "max-md:mt-10")}>
-                    {isEditing ? (
-                        <>
-                            {/* <div className="justify-self-start">
-                                <Button size="sm" variant="ghost" onClick={() => onOpen("additional-section-modal")}>
-                                    <Plus className="h-5 w-5 mr-2" /> Luo uusi osio
-                                </Button>
-                            </div> */}
-                            {/* <div className="flex items-center justify-end gap-2"> */}
-                                <Button variant="ghost" size="sm" onClick={handleCancelEdit}><X className="h-5 w-5" /></Button>
-                                <Button size="sm" onClick={handleSaveChanges}>Tallenna</Button>
-                            {/* </div> */}
-                        </>
-                    ) : (
-                        <div className="flex items-center gap-1">
-                            {/* {user.role === "admin" || user.role === "customer_admin" && (
+                    <div className="flex items-center gap-1">
+                        {/* {user.role === "admin" || user.role === "customer_admin" && (
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -364,12 +230,10 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                     <Edit2 className="h-4 w-4" />
                                 </Button>
                             )} */}
-                            <Button variant="ghost" size="sm" onClick={handleToggleEditMode}>
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                        </div>
-
-                    )}
+                        {/* <Button variant="ghost" size="sm" onClick={handleToggleEditMode}>
+                            <Edit className="h-4 w-4" />
+                        </Button> */}
+                    </div>
                 </div>
             </div>
 
@@ -381,23 +245,39 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                         <Input className='text-sm w-full h-full pl-10' type="search" placeholder="Search..." />
                     </div> */}
                     <div className='px-2'>
-                         
+
                         {sections.map((section, sectionIndex) => {
-                            const hasActiveSubsections = section.initialSubsections?.some(sub => sub.isActive);
+                         
+                            const hasActiveSubsections = section.initialSubsections?.some(sub => sub.isActive === true);
                             const hasSubsections = (section.initialSubsections && section.initialSubsections.length > 0) || (section.additionalSubsections && section.additionalSubsections.length > 0);
                             
-                            // Show section if: editing mode OR has active subsections OR has no subsections but is a main section
-                            if (!isEditing && !hasActiveSubsections && !hasSubsections) return null;
-                            // For additional sections, show even if no subsections present when not editing
-                            if (!hasSubsections && !isEditing && !section.isAdditional) return null;
-                        
-                            if(section.eventId && section.eventId !== user.activeEventId) return null;
+                            // Debug log for sidebar
+                            if (section.title === "Myynnillinen Asiakashankinta") {
+                                console.log(`Sidebar - Section "${section.title}":`, {
+                                    hasActiveSubsections,
+                                    hasSubsections,
+                                    subsections: section.initialSubsections?.map(sub => ({ title: sub.title, isActive: sub.isActive }))
+                                });
+                            }
                             
+                            // Check if current page is collaborators page
+                            const isCollaboratorsPage = pathname.includes('/collaborators');
+                            
+                            // Hide additional_sections when on collaborators page
+                            if (isCollaboratorsPage && section.$collectionId === "additional_sections") return null;
+
+                            // Show section if: editing mode OR has active subsections OR has no subsections but is a main section
+                            if (!hasActiveSubsections || !hasSubsections) return null;
+                            // For additional sections, show even if no subsections present when not editing
+                            if (!hasSubsections && !section.isAdditional) return null;
+
+                            if (section.eventId && section.eventId !== user.activeEventId) return null;
+
                             return (
                                 <div key={section.$id || sectionIndex}>
-                                    
-                                    {(section.$collectionId === "additional_sections" && sections[sectionIndex - 1].$collectionId === "initial_sections") && <div className='pb-3 border-t mt-2 border-gray-200'></div>}
-                                    <div className="text-sm font-semibold text-black/60 px-4 max-[1540px]:px-1 py-2 tracking-wide uppercase whitespace-nowrap">
+
+                                    {/* {(section.$collectionId === "additional_sections" && sections[sectionIndex - 1].$collectionId === "initial_sections") && <div className='pb-3 border-t mt-2 border-gray-200'></div>} */}
+                                    <div className="text-[15px] font-bold text-black/60 px-1 max-[1540px]:px-1 py-2 tracking-wide uppercase whitespace-nowrap">
                                         {sectionIndex + 1}. {section.title}
                                     </div>
 
@@ -407,7 +287,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                             {section.initialSubsections.map((subsection, subIndex) => {
                                                 // In view mode, only show active subsections
 
-                                                if (!isEditing && !subsection.isActive) return null;
+                                                if (subsection.isActive !== true) return null;
 
                                                 // Get current path segments and check if last segment is documents/notes/todos/collaborators
                                                 const pathSegments = pathname.split('/').filter(Boolean);
@@ -434,24 +314,17 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], activeSu
                                                         "flex items-center transition-colors rounded-md overflow-hidden",
                                                         isCurrentPath && !isEditing ? 'bg-green-100' : 'hover:bg-gray-100'
                                                     )}>
-                                                        {/* Checkbox for editing mode */}
-                                                        {isEditing && (
-                                                            <div className="pl-4 flex items-center flex-shrink-0 pr-2">
-                                                                <Checkbox
-                                                                    id={`sub-${sectionIndex}-${subIndex}`}
-                                                                    checked={subsection.isActive || false}
-                                                                    onCheckedChange={() => handleSubsectionToggle(sectionIndex, subIndex)}
-                                                                    className="cursor-pointer"
-                                                                />
-                                                            </div>
-                                                        )}
 
                                                         {/* Navigation link */}
                                                         <Link
                                                             href={process.env.NEXT_PUBLIC_MESSUOPAS_URL + fullPath}
+                                                            onClick={() => {
+                                                                setCurrentSection(section);
+                                                                setCurrentSubSection(subsection);
+                                                            }}
                                                             className={cn(
                                                                 "block text-base py-3.5 leading-none font-normal flex-1 whitespace-nowrap transition-colors",
-                                                                isEditing ? 'pl-2 pr-4' : 'pl-9 px-4',
+                                                                isEditing ? 'pl-2 pr-4' : ' px-4',
                                                                 isCurrentPath && !isEditing
                                                                     ? 'text-green-600 font-semibold border-l-4 border-green-500'
                                                                     : 'text-black/90',

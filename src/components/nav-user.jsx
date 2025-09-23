@@ -20,6 +20,7 @@ import { EllipsisVerticalIcon, LogOut, User } from "lucide-react"
 import { signOut } from "@/lib/appwrite/server"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import Link from "next/link"
 
 export function NavUser({
     user,
@@ -86,9 +87,11 @@ export function NavUser({
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                        <DropdownMenuItem>
-                            <User />
-                            Tili
+                        <DropdownMenuItem asChild>
+                            <Link href="/messuopas/account" className="flex items-center gap-2">
+                                <User />
+                                Tili
+                            </Link>
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />

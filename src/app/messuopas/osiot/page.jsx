@@ -3,14 +3,12 @@ import { listDocuments } from "@/lib/appwrite/server";
 import { Query } from "node-appwrite";
 import { getLoggedInUser } from "@/lib/appwrite/server";
 
-
 export default async function SectionsPage() {
     const user = await getLoggedInUser();
 
     if (
-        user.role !== "admin" &&
-        user.role !== "customer_admin" &&
-        user.role !== "premium_user"
+        user?.role !== "admin" &&
+        user?.role !== "customer_admin"
     ) {
         return <h1>NO ACCESS TO THIS PAGE</h1>;
     }

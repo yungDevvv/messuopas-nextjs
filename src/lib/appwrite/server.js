@@ -43,7 +43,7 @@ export const createUser = async (data) => {
         );
 
         const databases = new Databases(client);
-        const {password, ...body} = data;
+        const { password, ...body } = data;
         await databases.createDocument(
             'main_db',
             'users',
@@ -413,3 +413,152 @@ export const getLoggedInUser = cache(async () => {
         return null;
     }
 });
+
+export async function createUserRecoveryPassword(redirectUrl) {
+    try {
+        const user = await getLoggedInUser();
+
+        const { account } = await createSessionClient();
+
+        const res = await account.createRecovery(user.email, redirectUrl);
+
+        return { error: null, success: true };
+    } catch (error) {
+        console.log(error, "APPWRITE createUserRecoveryPassword()");
+        return { error: error, success: false };
+    }
+}
+
+export async function updateRecoveryPassword(secret, user_id, password) {
+    try {
+        const { account } = await createSessionClient();
+
+        await account.updateRecovery(
+            user_id,
+            secret,
+            password
+        );
+
+        return { error: null, success: true };
+    } catch (error) {
+        console.log(error, "APPWRITE updateRecoveryPassword()");
+        return { error: error, success: false };
+    }
+}
+
+export const getTodosFromAdditionalSection = async (subsectionId, eventId) => {
+    try {
+        const { databases } = await createSessionClient();
+        
+        // First, try to find the additional subsection by path
+        const { documents: subsections } = await databases.listDocuments(
+            "main_db", 
+            "additional_subsections",
+            [Query.equal('path', subsectionId)]
+        );
+        
+        console.log('Found subsections:', subsections, "for path:", subsectionId);
+        
+        if (subsections.length === 0) {
+            console.log('No additional subsection found for path:', subsectionId);
+            return { data: [], error: null };
+        }
+        
+        const subsection = subsections[0];
+        console.log('Using subsection ID:', subsection.$id);
+        
+        // Now fetch todos for this subsection
+        const { documents: todos } = await databases.listDocuments(
+            "main_db",
+            "todos",
+            [
+                Query.equal('event', eventId),
+                Query.equal('additionalSubsection', subsection.$id)
+            ]
+        );
+
+        console.log('Found todos for additional section:', todos.length);
+        return { data: todos, error: null };
+    } catch (error) {
+        console.error(`Failed to fetch todos for subsection ${subsectionId}:`, error);
+        return { data: [], error: error }; // Return empty array on error to prevent UI crashes
+    }
+}
+
+export const getDocumentsFromAdditionalSection = async (subsectionId, eventId) => {
+    try {
+        const { databases } = await createSessionClient();
+        
+        // First, try to find the additional subsection by path
+        const { documents: subsections } = await databases.listDocuments(
+            "main_db", 
+            "additional_subsections",
+            [Query.equal('path', subsectionId)]
+        );
+        
+        console.log('Found subsections:', subsections, "for path:", subsectionId);
+        
+        if (subsections.length === 0) {
+            console.log('No additional subsection found for path:', subsectionId);
+            return { data: [], error: null };
+        }
+        
+        const subsection = subsections[0];
+        console.log('Using subsection ID:', subsection.$id);
+        
+        // Now fetch todos for this subsection
+        const { documents: documents } = await databases.listDocuments(
+            "main_db",
+            "documents",
+            [
+                Query.equal('event', eventId),
+                Query.equal('additionalSubsection', subsection.$id)
+            ]
+        );
+
+        console.log('Found documents for additional section:', documents.length);
+        return { data: documents, error: null };
+    } catch (error) {
+        console.error(`Failed to fetch documents for subsection ${subsectionId}:`, error);
+        return { data: [], error: error }; // Return empty array on error to prevent UI crashes
+    }
+}
+
+export const getNotesFromAdditionalSection = async (subsectionId, eventId) => {
+    try {
+        const { databases } = await createSessionClient();
+        
+        // First, try to find the additional subsection by path
+        const { documents: subsections } = await databases.listDocuments(
+            "main_db", 
+            "additional_subsections",
+            [Query.equal('path', subsectionId)]
+        );
+        
+        console.log('Found subsections:', subsections, "for path:", subsectionId);
+        
+        if (subsections.length === 0) {
+            console.log('No additional subsection found for path:', subsectionId);
+            return { data: [], error: null };
+        }
+        
+        const subsection = subsections[0];
+        console.log('Using subsection ID:', subsection.$id);
+        
+        // Now fetch todos for this subsection
+        const { documents: documents } = await databases.listDocuments(
+            "main_db",
+            "notes",
+            [
+                Query.equal('event', eventId),
+                Query.equal('additionalSubsectionId', subsection.$id)
+            ]
+        );
+
+        console.log('Found notes for additional section:', documents.length);
+        return { data: documents, error: null };
+    } catch (error) {
+        console.error(`Failed to fetch notes for subsection ${subsectionId}:`, error);
+        return { data: [], error: error }; // Return empty array on error to prevent UI crashes
+    }
+}

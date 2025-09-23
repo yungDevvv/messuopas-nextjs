@@ -4,13 +4,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, Clock, Target, Flag, Calendar, AlertCircle, MoreVertical, Trash2, Edit, Plus, Loader2 } from 'lucide-react';
+import { Clock, Calendar, Trash2 } from 'lucide-react';
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAppContext } from '@/context/app-context';
@@ -18,7 +15,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { fi } from 'date-fns/locale';
 import { useModal } from '@/hooks/use-modal';
 import { createDocument, deleteDocument, updateDocument } from '@/lib/appwrite/server';
 import { cn } from '@/lib/utils';
@@ -29,62 +25,23 @@ const todoSchema = z.object({
     text: z.string().min(1, "Tämä kenttä on pakollinen").max(500, "Kuvaus on liian pitkä")
 });
 
-// Mock data for UI demonstration
-const mockTodos = [
-    {
-        $id: '1',
-        name: 'Valmistele esitys asiakkaalle',
-        text: 'Luo PowerPoint-esitys uudesta tuotteesta ja valmistele demomateriaali.',
-        status: 'in-progress',
-        $createdAt: '2024-01-15T10:00:00.000Z',
-        $updatedAt: '2024-01-18T14:30:00.000Z'
-    },
-    {
-        $id: '2',
-        name: 'Päivitä projektin dokumentaatio',
-        text: 'Kirjoita tekninen dokumentaatio ja käyttöohje uusille ominaisuuksille.',
-        status: 'pending',
-        $createdAt: '2024-01-16T14:30:00.000Z',
-        $updatedAt: '2024-01-16T14:30:00.000Z'
-    },
-    {
-        $id: '3',
-        name: 'Testaa uusi ominaisuus',
-        text: 'Suorita kattavat testit uudelle käyttöliittymäkomponentille.',
-        status: 'completed',
-        $createdAt: '2024-01-14T09:15:00.000Z',
-        $updatedAt: '2024-01-20T16:20:00.000Z'
-    },
-    {
-        $id: '4',
-        name: 'Järjestä tiimin kokous',
-        text: 'Suunnittele ja järjestä viikoittainen tiimin kokous.',
-        status: 'pending',
-        $createdAt: '2024-01-17T16:45:00.000Z',
-        $updatedAt: '2024-01-17T16:45:00.000Z'
-    },
-    {
-        $id: '5',
-        name: 'Korjaa bugi käyttöliittymässä',
-        text: 'Korjaa ongelma joka aiheuttaa sivun kaatumisen.',
-        status: 'in-progress',
-        $createdAt: '2024-01-19T08:15:00.000Z',
-        $updatedAt: '2024-01-19T11:30:00.000Z'
-    }
-];
 
-export default function TodoClientPage({ todos, subsectionId }) {
+export default function TodoClientPage({ todos, additionalSectionTodos, subsectionId, sectionPath }) {
     const { onOpen } = useModal();
     const [tab, setTab] = useState(1);
     const [isUploading, setIsUploading] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
     const router = useRouter();
-    const { user } = useAppContext();
-
+    const { user, currentSection, currentSubSection } = useAppContext();
+    const isAdditionalSection = currentSubSection?.$collectionId === "additional_subsections";
+   
+    // Use appropriate todos based on section type
+    const allTodos = isAdditionalSection ? (additionalSectionTodos || []) : (todos || []);
+    
     // Filter todos based on status
     const filteredTodos = statusFilter === 'all'
-        ? todos
-        : todos.filter(todo => todo.status === statusFilter);
+        ? allTodos
+        : allTodos.filter(todo => todo.status === statusFilter);
 
     const form = useForm({
         resolver: zodResolver(todoSchema),
@@ -95,16 +52,20 @@ export default function TodoClientPage({ todos, subsectionId }) {
     });
 
     const onSubmit = async (values) => {
-        console.log('TODO form submitted:', values);
+        // isAdditionalSection
         try {
             setIsUploading(true);
-            const { error, data } = await createDocument("main_db", "todos", {
-                body: {
-                    ...values,
-                    initialSubsection: subsectionId,
-                    event: user.activeEventId
-                }
-            });
+            const body = {
+                ...values,
+                event: user.activeEventId
+            }
+            if (isAdditionalSection) {
+                body.additionalSubsection = currentSubSection.$id
+            } else {
+                body.initialSubsection = currentSubSection.$id
+            }
+          
+            const { error, data } = await createDocument("main_db", "todos", {body});
 
             if (error) {
                 console.error('TODO creation error:', error);
@@ -253,28 +214,28 @@ export default function TodoClientPage({ todos, subsectionId }) {
                             size="sm"
                             onClick={() => setStatusFilter('all')}
                         >
-                            Kaikki ({todos.length})
+                            Kaikki ({allTodos.length})
                         </Button>
                         <Button
                             variant={statusFilter === 'pending' ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setStatusFilter('pending')}
                         >
-                            Odottaa ({todos.filter(t => t.status === 'pending').length})
+                            Odottaa ({allTodos.filter(t => t.status === 'pending').length})
                         </Button>
                         <Button
                             variant={statusFilter === 'in-progress' ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setStatusFilter('in-progress')}
                         >
-                            Käynnissä ({todos.filter(t => t.status === 'in-progress').length})
+                            Käynnissä ({allTodos.filter(t => t.status === 'in-progress').length})
                         </Button>
                         <Button
                             variant={statusFilter === 'completed' ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setStatusFilter('completed')}
                         >
-                            Valmis ({todos.filter(t => t.status === 'completed').length})
+                            Valmis ({allTodos.filter(t => t.status === 'completed').length})
                         </Button>
                     </div>
 
@@ -283,16 +244,16 @@ export default function TodoClientPage({ todos, subsectionId }) {
                         {filteredTodos?.length > 0 ?
                             filteredTodos.map((todo) => (
                                 <Card key={todo.$id} className={`border-l-4 gap-0 ${todo.status === 'completed' ? 'border-l-green-500' :
-                                        todo.status === 'in-progress' ? 'border-l-blue-500' :
-                                            'border-l-gray-300'
+                                    todo.status === 'in-progress' ? 'border-l-blue-500' :
+                                        'border-l-gray-300'
                                     }`}>
                                     <CardHeader>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <div>
                                                     <CardTitle className={`text-base ${todo.status === 'completed'
-                                                            ? 'line-through text-gray-500'
-                                                            : 'text-gray-900'
+                                                        ? 'line-through text-gray-500'
+                                                        : 'text-gray-900'
                                                         }`}>
                                                         {todo.name}
                                                     </CardTitle>
@@ -303,7 +264,7 @@ export default function TodoClientPage({ todos, subsectionId }) {
                                                     value={todo.status}
                                                     onValueChange={(value) => handleStatusChange(todo.$id, value)}
                                                 >
-                                                    <SelectTrigger className= {cn("w-32 h-8 text-sm", todo.status === "pending" ? "border-gray-600 text-gray-600" : todo.status === "in-progress" ? "border-blue-600 text-blue-600" : "border-green-600 text-green-600")}>
+                                                    <SelectTrigger className={cn("w-32 h-8 text-sm", todo.status === "pending" ? "border-gray-600 text-gray-600" : todo.status === "in-progress" ? "border-blue-600 text-blue-600" : "border-green-600 text-green-600")}>
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>

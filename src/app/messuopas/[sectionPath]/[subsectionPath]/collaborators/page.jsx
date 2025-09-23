@@ -1,5 +1,5 @@
 "use server";
-import { listDocuments } from "@/lib/appwrite/server";
+import { listDocuments, getDocument } from "@/lib/appwrite/server";
 import Breadcrumbs from "@/components/breadcrumbs";
 import CollaboratorsClientPage from "./_components/collaborators-client-page";
 import { Query } from "node-appwrite";
@@ -9,14 +9,19 @@ export default async function Page({ params }) {
 
     // const user = await getLoggedInUser();
 
-    const { data: subSectionCollaborators, error: subSectionError } = await listDocuments('main_db', 'collobarators', [
-        Query.equal('subSection', subsectionPath)
-    ]);
-    const { data: allInitialSectionCollaborators, error: initialSectionError } = await listDocuments('main_db', 'collobarators', [
-        Query.equal('initialSection', sectionPath)
-    ]);
-    // console.log(allInitialSectionCollaborators, "allInitialSectionCollaborators")
-    console.log(subSectionCollaborators, "subSectionCollaborators")
+    // Get all collaborators and filter on client side since subSection is a virtual relationship attribute
+    const { data: allCollaborators, error: subSectionError } = await listDocuments('main_db', 'collobarators', []);
+    const { data: allInitialSectionCollaborators, error: initialSectionError } = await listDocuments('main_db', 'collobarators');
+    const { data: currentSubSectionData, error: additionalSectionError } = await getDocument('main_db', 'initial_subsections', subsectionPath);
+    // Filter collaborators by subsection on server side since we can't query virtual relationship attributes
+    const subSectionCollaborators = allCollaborators?.filter(collaborator => 
+        collaborator.subSection?.some(sub => sub.$id === subsectionPath || sub.slug === subsectionPath)
+    ) || [];
+    
+    const allSectionCollaborators = allCollaborators?.filter(collaborator => 
+        collaborator.initialSection?.$id === sectionPath || collaborator.initialSection?.slug === sectionPath
+    ) || [];
+    
     if (subSectionError || initialSectionError) {
         console.log(subSectionError || initialSectionError)
         return (
@@ -27,14 +32,12 @@ export default async function Page({ params }) {
     return (
         <div className="w-full max-w-7xl mx-auto">
             {/* <Breadcrumbs section={data.section} subsection={subsectionPath} /> */}
-            <h1 className="text-2xl font-bold mb-4">Yhteistyökumppanit</h1>
-            <p className="text-gray-600 mb-6">Tähän tulee yhteistyökumppanit liittyen tähän osioon.</p>
-
             <CollaboratorsClientPage
                 collaborators={subSectionCollaborators}
-                subsectionData={subsectionPath}
                 sectionData={sectionPath}
                 allInitialSectionCollaborators={allInitialSectionCollaborators}
+                currentSubSectionData={currentSubSectionData}
+                allSectionCollaborators={allSectionCollaborators}
             />
         </div>
     );
