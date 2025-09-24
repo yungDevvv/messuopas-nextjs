@@ -273,12 +273,15 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], sections
 
                             if (section.eventId && section.eventId !== user.activeEventId) return null;
 
+                            return section;
+                        }).filter(Boolean).map((section, displayIndex) => {
+                            const hasSubsections = (section.initialSubsections && section.initialSubsections.length > 0) || (section.additionalSubsections && section.additionalSubsections.length > 0);
+                            
                             return (
-                                <div key={section.$id || sectionIndex}>
-
-                                    {/* {(section.$collectionId === "additional_sections" && sections[sectionIndex - 1].$collectionId === "initial_sections") && <div className='pb-3 border-t mt-2 border-gray-200'></div>} */}
+                                <div key={section.$id || displayIndex}>
+                                    {/* {(section.$collectionId === "additional_sections" && sections[displayIndex - 1].$collectionId === "initial_sections") && <div className='pb-3 border-t mt-2 border-gray-200'></div>} */}
                                     <div className="text-[15px] font-bold text-black/60 px-1 max-[1540px]:px-1 py-2 tracking-wide uppercase whitespace-nowrap">
-                                        {sectionIndex + 1}. {section.title}
+                                        {displayIndex + 1}. {section.title}
                                     </div>
 
                                     {/* Render subsections if they exist */}
@@ -331,7 +334,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], sections
                                                                 isEditing && 'pointer-events-none cursor-default'
                                                             )}
                                                         >
-                                                            {sectionIndex + 1}.{subIndex + 1} {subsection.title}
+                                                            {displayIndex + 1}.{subIndex + 1} {subsection.title}
                                                         </Link>
                                                     </div>
                                                 );
