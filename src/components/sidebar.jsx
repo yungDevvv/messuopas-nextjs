@@ -147,7 +147,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], sections
                         }}
                     >
                         <SelectTrigger className="w-full max-md:w-[calc(100%-40px)] max-md:ml-10 max-md:mr-10">
-                            <SelectValue placeholder="Valitse omistaja" />
+                            <SelectValue placeholder="Valitse pääkäyttäjä" />
                         </SelectTrigger>
                         <SelectContent>
                             {/* Organizations */}
@@ -172,7 +172,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], sections
 
                 {(user.role === "admin" || user.role === "premium_user" || user.role === "customer_admin") && !isEditing && (
                     <Select value={activeEventId} onValueChange={handleEventChange}>
-                        {console.log(activeEventId, "events123123123")}
+                      
                         <SelectTrigger className="w-full max-md:ml-10">
                             <SelectValue placeholder="Valitse messut" />
                         </SelectTrigger>
@@ -247,22 +247,13 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], sections
                     <div className='px-2'>
 
                         {sections.map((section, sectionIndex) => {
-                         
+
                             const hasActiveSubsections = section.initialSubsections?.some(sub => sub.isActive === true);
                             const hasSubsections = (section.initialSubsections && section.initialSubsections.length > 0) || (section.additionalSubsections && section.additionalSubsections.length > 0);
-                            
-                            // Debug log for sidebar
-                            if (section.title === "Myynnillinen Asiakashankinta") {
-                                console.log(`Sidebar - Section "${section.title}":`, {
-                                    hasActiveSubsections,
-                                    hasSubsections,
-                                    subsections: section.initialSubsections?.map(sub => ({ title: sub.title, isActive: sub.isActive }))
-                                });
-                            }
-                            
+
                             // Check if current page is collaborators page
                             const isCollaboratorsPage = pathname.includes('/collaborators');
-                            
+
                             // Hide additional_sections when on collaborators page
                             if (isCollaboratorsPage && section.$collectionId === "additional_sections") return null;
 
@@ -276,7 +267,7 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], sections
                             return section;
                         }).filter(Boolean).map((section, displayIndex) => {
                             const hasSubsections = (section.initialSubsections && section.initialSubsections.length > 0) || (section.additionalSubsections && section.additionalSubsections.length > 0);
-                            
+
                             return (
                                 <div key={section.$id || displayIndex}>
                                     {/* {(section.$collectionId === "additional_sections" && sections[displayIndex - 1].$collectionId === "initial_sections") && <div className='pb-3 border-t mt-2 border-gray-200'></div>} */}
@@ -324,6 +315,11 @@ function Sidebar({ events, user, organizations = [], privateUsers = [], sections
                                                             onClick={() => {
                                                                 setCurrentSection(section);
                                                                 setCurrentSubSection(subsection);
+                                                                // Save subsection ID and collectionId to localStorage
+                                                                if (typeof window !== 'undefined') {
+                                                                    localStorage.setItem('currentSubsectionId', subsection.$id);
+                                                                    localStorage.setItem('currentSubsectionCollectionId', subsection.$collectionId);
+                                                                }
                                                             }}
                                                             className={cn(
                                                                 "block text-base py-3.5 leading-none font-normal flex-1 whitespace-nowrap transition-colors",

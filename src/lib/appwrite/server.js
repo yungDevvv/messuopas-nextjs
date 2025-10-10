@@ -44,6 +44,9 @@ export const createUser = async (data) => {
 
         const databases = new Databases(client);
         const { password, ...body } = data;
+
+        console.log(body, "body123123123123123");
+
         await databases.createDocument(
             'main_db',
             'users',

@@ -252,7 +252,7 @@ export default function UsersModal({ open, onOpenChange, selectedUser, fetchUser
     };
 
     const onSubmit = async (data) => {
-     
+
         try {
             // line comment: quick guard — require role
             if (!data.role) {
@@ -402,7 +402,7 @@ export default function UsersModal({ open, onOpenChange, selectedUser, fetchUser
                         payload.activeEventId = event.$id;
                     }
                 }
-
+                console.log(payload, "ad123213321321asadsasdasd");
                 const { data: created, error } = await createUser(payload);
 
                 if (error) {
@@ -411,11 +411,11 @@ export default function UsersModal({ open, onOpenChange, selectedUser, fetchUser
                     return;
                 }
 
-                router.refresh();
-                toast.success('Käyttäjä luotu onnistuneesti!');
-                reset();
-                onOpenChange(false);
-                fetchUsers?.();
+                // router.refresh();
+                // toast.success('Käyttäjä luotu onnistuneesti!');
+                // reset();
+                // onOpenChange(false);
+                // fetchUsers?.();
             }
         } catch (error) {
             console.error('Error with user operation:', error);
@@ -463,9 +463,9 @@ export default function UsersModal({ open, onOpenChange, selectedUser, fetchUser
                             <Input
                                 id="password"
                                 type="password"
-                                {...register('password', { required: !isEditing, minLength: 6 })}
+                                {...register('password', { required: !isEditing, minLength: 8 })}
                             />
-                            {errors.password && <span className="text-red-500 text-sm">Salasana on pakollinen (min. 6 merkkiä)</span>}
+                            {errors.password && <span className="text-red-500 text-sm">Salasana on pakollinen (min. 8 merkkiä)</span>}
                         </div>
                     )}
 
@@ -662,9 +662,8 @@ export default function UsersModal({ open, onOpenChange, selectedUser, fetchUser
                             )}
                         </div>
                     )}
-
                     {/* Event selection for customer_admin: only existing events of the selected organization */}
-                    {role === 'customer_admin' && selectedOrganizationId && (
+                    {role === 'customer_admin' && selectedOrganizationId && ((!isEditing && selectedUser?.organization?.$id === selectedOrganizationId) || (isEditing && selectedUser?.organization?.$id !== selectedOrganizationId)) && (
                         <div className="space-y-3">
                             <Label>Messut</Label>
                             {eventsLoading ? (

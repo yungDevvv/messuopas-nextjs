@@ -55,8 +55,11 @@ export default function DocumentsClientPage({ documents, subsectionId }) {
     const [isUploading, setIsUploading] = useState(false);
     const router = useRouter();
     const { user, currentSubSection } = useAppContext();
-    console.log(currentSubSection, "currentSubSectioncurrentSubSection12312")
-    const isAdditionalSection = currentSubSection?.$collectionId === "additional_subsections";
+
+    const isAdditionalSection = currentSubSection
+        ? currentSubSection.$collectionId === "additional_subsections"
+        : (typeof window !== 'undefined' && localStorage.getItem('currentSubsectionCollectionId') === "additional_subsections");
+
     const form = useForm({
         resolver: zodResolver(documentSchema),
         defaultValues: {
@@ -93,9 +96,9 @@ export default function DocumentsClientPage({ documents, subsectionId }) {
             }
 
             if (isAdditionalSection) {
-                body.additionalSubsection = currentSubSection.$id
+                body.additionalSubsection = currentSubSection ? currentSubSection.$id : localStorage.getItem('currentSubsectionId');
             } else {
-                body.initialSubsection = currentSubSection.$id
+                body.initialSubsection = currentSubSection ? currentSubSection.$id : localStorage.getItem('currentSubsectionId');
             }
 
             // Create document record in database with name and description

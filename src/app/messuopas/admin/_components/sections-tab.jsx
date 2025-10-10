@@ -19,7 +19,7 @@ import {
     arrayMove,
     SortableContext,
     verticalListSortingStrategy,
-    sortableKeyboardCoordinates 
+    sortableKeyboardCoordinates
 } from '@dnd-kit/sortable';
 
 // Import new components
@@ -36,7 +36,6 @@ export default function SectionsTab() {
     const [createMode, setCreateMode] = useState(null); // 'section' | 'subsection' | null
     const [editMode, setEditMode] = useState(null); // { type: 'section'|'subsection', item: object } | null
 
-
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -49,7 +48,7 @@ export default function SectionsTab() {
         try {
             setLoading(true);
             const { data: sectionsData, error } = await listDocuments('main_db', 'initial_sections', []);
-            
+
             if (error) {
                 console.error('Error loading sections:', error);
                 toast.error('Virhe osioiden lataamisessa');
@@ -58,7 +57,7 @@ export default function SectionsTab() {
 
             // Sort sections by order
             const sortedSections = (sectionsData || []).sort((a, b) => (a.order || 0) - (b.order || 0));
-            
+
             // Sort subsections within each section by order
             const sectionsWithSortedSubsections = sortedSections.map(section => ({
                 ...section,
@@ -90,7 +89,7 @@ export default function SectionsTab() {
                 const updatePromises = newSections.map((section, index) =>
                     updateDocument('main_db', 'initial_sections', section.$id, { order: index })
                 );
-                
+
                 await Promise.all(updatePromises);
                 toast.success('Osioiden järjestys päivitetty');
             } catch (error) {
@@ -112,10 +111,10 @@ export default function SectionsTab() {
             const newIndex = subsections.findIndex(sub => sub.$id === over.id);
 
             const newSubsections = arrayMove(subsections, oldIndex, newIndex);
-            
+
             // Update sections state
-            const updatedSections = sections.map(s => 
-                s.$id === section.$id 
+            const updatedSections = sections.map(s =>
+                s.$id === section.$id
                     ? { ...s, initialSubsections: newSubsections }
                     : s
             );
@@ -126,7 +125,7 @@ export default function SectionsTab() {
                 const updatePromises = newSubsections.map((subsection, index) =>
                     updateDocument('main_db', 'initial_subsections', subsection.$id, { order: index })
                 );
-                
+
                 await Promise.all(updatePromises);
                 toast.success('Alaosioiden järjestys päivitetty');
             } catch (error) {
@@ -209,7 +208,6 @@ export default function SectionsTab() {
         }
     };
 
-    // Delete section
     const deleteSection = async (section) => {
         if (!confirm(`Haluatko varmasti poistaa osion "${section.title}"? Tämä poistaa myös kaikki sen alaosiot.`)) {
             return;
@@ -291,7 +289,7 @@ export default function SectionsTab() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Osioiden hallinta</h2>
+                <h2 className="text-xl font-semibold">Palvelun osioiden hallinta</h2>
                 <Button onClick={() => setCreateMode('section')}>
                     <Plus className="w-4 h-4 mr-2" />
                     Luo uusi osio
@@ -326,6 +324,7 @@ export default function SectionsTab() {
                             items={sections.map(section => section.$id)}
                             strategy={verticalListSortingStrategy}
                         >
+                            {console.log(sections, "sections123123")}
                             <div className="space-y-4">
                                 {sections.map((section, sectionIndex) => {
                                     // Check if this section is being edited
@@ -366,9 +365,9 @@ export default function SectionsTab() {
             {/* Add section at the end if not in create mode */}
             {createMode !== 'section' && sections.length > 0 && (
                 <div className="pt-4">
-                    <Button 
-                        variant="outline" 
-                        className="w-full border-dashed" 
+                    <Button
+                        variant="outline"
+                        className="w-full border-dashed"
                         onClick={() => setCreateMode('section')}
                     >
                         <Plus className="w-4 h-4 mr-2" />

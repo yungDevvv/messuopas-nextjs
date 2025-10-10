@@ -106,7 +106,7 @@ export default function EditSubsectionPage() {
             }
 
             toast.success('Alaosio päivitetty onnistuneesti');
-            router.push("/messuopas/osiot");
+            router.push("/messuopas/dashboard?tab=3");
             router.refresh();
         } catch (error) {
             console.error('Error updating subsection:', error);
@@ -142,7 +142,7 @@ export default function EditSubsectionPage() {
             }
 
             toast.success('Alaosio poistettu onnistuneesti');
-            router.push("/messuopas/osiot");
+            router.push("/messuopas/dashboard?tab=3");
             router.refresh();
         } catch (error) {
             console.error('Error deleting subsection:', error);
@@ -161,7 +161,7 @@ export default function EditSubsectionPage() {
             {/* Header */}
             <Button
                 variant="ghost"
-                onClick={() => router.push("/messuopas/osiot")}
+                onClick={() => router.push("/messuopas/dashboard?tab=3")}
                 disabled={isSubmitting}
             >
                 <ArrowLeft className="w-4 h-4 mr-2" />

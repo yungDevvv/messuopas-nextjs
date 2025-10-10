@@ -7,7 +7,7 @@ import { Query } from "node-appwrite";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Building, Eye, EllipsisVertical, Edit2, X, Trash, Settings } from "lucide-react";
+import { Users, Building, Eye, EllipsisVertical, Edit2, X, Trash, Settings, Search } from "lucide-react";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { debounce } from "@/lib/utils/debounce";
@@ -31,14 +31,17 @@ export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
     const [loading, setLoading] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [selectedUserForEvents, setSelectedUserForEvents] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const { onOpen } = useModal();
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
+            console.log("LOADING 1")
             const { data } = await listDocuments('main_db', 'users');
             setUsers(data || []);
+            console.log("END LOADING 2")
         } catch (error) {
             console.error('Error loading users:', error);
         } finally {
@@ -69,12 +72,35 @@ export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
             toast.error('Käyttäjän poistaminen epäonnistui');
         }
     };
+
+    // line comment: filter users based on search query
+    const filteredUsers = useMemo(() => {
+        if (!searchQuery.trim()) return users;
+        
+        const query = searchQuery.toLowerCase();
+        
+        return users.filter(user => 
+            user.name?.toLowerCase().includes(query) ||
+            user.email?.toLowerCase().includes(query) ||
+            user.organization?.name?.toLowerCase().includes(query) ||
+            getRoleLabelFi(user.role)?.toLowerCase().includes(query)
+        );
+    }, [users, searchQuery]);
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-2">
-
                 <h2 className="text-lg font-medium">Käyttäjät</h2>
                 <Button onClick={() => setUserModalOpen(true)}>Lisää uusi käyttäjä</Button>
+            </div>
+
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Hae käyttäjiä nimellä, sähköpostilla, organisaatiolla tai roolilla..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                />
             </div>
 
             {loading ? (
@@ -91,7 +117,14 @@ export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {users.map((user) => (
+                            {filteredUsers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        {searchQuery ? 'Ei hakutuloksia' : 'Ei käyttäjiä'}
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredUsers.map((user) => (
                                 <TableRow key={user.$id}>
                                     <TableCell className="font-medium">{user.name}</TableCell>
                                     <TableCell>{user.email}</TableCell>
@@ -112,50 +145,54 @@ export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
                                     </TableCell>
                                     <TableCell>{user.organization?.name || '-'}</TableCell>
                                     <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <EllipsisVertical className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem
-                                                    className="gap-2"
-                                                    onClick={() => {
-                                                        if (typeof onEditUser === 'function') {
-                                                            onEditUser(user);
-                                                        } else {
-                                                            setSelectedUser(user);
-                                                            setUserModalOpen(true);
-                                                        }
-                                                    }}>
-                                                    <Edit2 className="h-4 w-4" /> Muokkaa
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="gap-2"
-                                                    onClick={() => {
-                                                        setSelectedUserForEvents(user);
-                                                        setUserEventsModalOpen(true);
-                                                    }}>
-                                                    <Settings className="h-4 w-4" /> Messujen hallinta
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="gap-2 text-red-600"
-                                                    onClick={() => onOpen("confirm-modal",
-                                                        {
-                                                            title: "Poista käyttäjä",
-                                                            description: `Haluatko varmasti poistaa käyttäjän "${user.name}"?`,
-                                                            callback: () => handleDeleteUser(user.$id, user.email)
-                                                        }
+                                        {user.role !== 'admin' && (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <EllipsisVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        className="gap-2"
+                                                        onClick={() => {
+                                                            if (typeof onEditUser === 'function') {
+                                                                onEditUser(user);
+                                                            } else {
+                                                                setSelectedUser(user);
+                                                                setUserModalOpen(true);
+                                                            }
+                                                        }}>
+                                                        <Edit2 className="h-4 w-4" /> Muokkaa
+                                                    </DropdownMenuItem>
+                                                    {user.role !== 'customer_admin' && user.role !== 'user' && (
+                                                        <DropdownMenuItem
+                                                            className="gap-2"
+                                                            onClick={() => {
+                                                                setSelectedUserForEvents(user);
+                                                                setUserEventsModalOpen(true);
+                                                            }}>
+                                                            <Settings className="h-4 w-4" /> Messujen hallinta
+                                                        </DropdownMenuItem>
                                                     )}
-                                                >
-                                                    <Trash className="h-4 w-4" /> Poista
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-red-600"
+                                                        onClick={() => onOpen("confirm-modal",
+                                                            {
+                                                                title: "Poista käyttäjä",
+                                                                description: `Haluatko varmasti poistaa käyttäjän "${user.name}"?`,
+                                                                callback: () => handleDeleteUser(user.$id, user.email)
+                                                            }
+                                                        )}
+                                                    >
+                                                        <Trash className="h-4 w-4" /> Poista
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )))}
                         </TableBody>
                     </Table>
                 </div>
@@ -163,11 +200,11 @@ export default function UsersTab({ onEditUser, onRegisterFetchUsers }) {
             {/* line comment: render local UsersModal only when parent does not control it */}
             {/* {!onEditUser && ( */}
             <UsersModal open={userModalOpen} fetchUsers={fetchUsers} onOpenChange={setUserModalOpen} selectedUser={selectedUser} />
-            <UserEventsModal 
-                open={userEventsModalOpen} 
-                fetchUsers={fetchUsers} 
-                onOpenChange={setUserEventsModalOpen} 
-                selectedUser={selectedUserForEvents} 
+            <UserEventsModal
+                open={userEventsModalOpen}
+                fetchUsers={fetchUsers}
+                onOpenChange={setUserEventsModalOpen}
+                selectedUser={selectedUserForEvents}
             />
             {/* )} */}
         </div>

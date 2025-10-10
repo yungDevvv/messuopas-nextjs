@@ -6,6 +6,8 @@ import { useModal } from "@/hooks/use-modal";
 import ConfirmModal from "../modals/confirm-modal";
 import EventModal from "../modals/event-modal";
 import AdditionalSectionModal from "../modals/additional-section-modal";
+import SectionPermissionsModal from "../modals/section-permissions-modal";
+
 
 export const ModalProvider = () => {
     const [isMounted, setIsMounted] = useState(false);
@@ -24,6 +26,7 @@ export const ModalProvider = () => {
             {isOpen && type === "confirm-modal" && <ConfirmModal />}
             {isOpen && type === "event-modal" && <EventModal />}
             {isOpen && type === "additional-section-modal" && <AdditionalSectionModal />}
+            {isOpen && type === "section-permissions-modal" && <SectionPermissionsModal />}
         </>
     )
 }

@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { Plus, Edit, Trash2, FolderOpen, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { Plus, Edit, Trash2, FolderOpen, ChevronDown, ChevronRight, GripVertical, Shield } from "lucide-react";
 import SubsectionCard from "./subsection-card";
 import {
     DndContext,
@@ -20,6 +20,7 @@ import {
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { useModal } from "@/hooks/use-modal";
 
 export default function SectionCard({ 
     section, 
@@ -34,6 +35,7 @@ export default function SectionCard({
     onSubsectionDragEnd 
 }) {
     const router = useRouter();
+    const { onOpen } = useModal();
     
     const {
         attributes,
@@ -73,6 +75,7 @@ export default function SectionCard({
                         >
                             <GripVertical className="w-4 h-4 text-gray-400" />
                         </div>
+                        
                         <button
                             onClick={() => toggleSection(section.$id)}
                             className="p-2 hover:bg-gray-100 rounded"
@@ -83,9 +86,11 @@ export default function SectionCard({
                                 <ChevronRight className="w-4 h-4" />
                             )}
                         </button>
+
                         <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-sm text-sm font-medium">
                             {sectionIndex + 1}
                         </div>
+
                         <FolderOpen className="w-5 h-5 text-blue-500" />
                         <CardTitle className="text-base">{section.title}</CardTitle>
                         <span className="text-sm text-gray-500">
@@ -99,6 +104,14 @@ export default function SectionCard({
                         >
                             <Plus className="w-4 h-4 mr-1" />
                             Alaosio
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            onClick={() => onOpen("section-permissions-modal", { section })}
+                            title="Osion käyttöönotto"
+                        >
+                            <Shield className="w-4 h-4 mr-1" />
+                            Käyttöönotto
                         </Button>
                         <Button
                             variant="ghost"

@@ -9,6 +9,7 @@ import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { listDocuments, updateDocument, deleteDocument } from "@/lib/appwrite/server";
 import CKeditor from "@/components/rich-text-editor";
+import { slugify } from "@/lib/utils";
 
 export default function EditSubsectionPage() {
     const router = useRouter();
@@ -106,7 +107,7 @@ export default function EditSubsectionPage() {
             }
 
             toast.success('Alaosio päivitetty onnistuneesti');
-            router.push("/messuopas/osiot");
+            router.push("/messuopas/dashboard?tab=3");
             router.refresh();
         } catch (error) {
             console.error('Error updating subsection:', error);

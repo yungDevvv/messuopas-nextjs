@@ -243,7 +243,7 @@ class MauticEmailService {
         }
     }
 
-    async sendInvitationEmail({ reciever_email, organization_name, registration_link }) {
+    async sendInvitationEmail({ reciever_email, organization_name, registration_link, name, inviter_email }) {
         try {
             // Check or create contact
             let contactId = await this.checkContactExists(reciever_email);
@@ -261,7 +261,9 @@ class MauticEmailService {
                 body: JSON.stringify({
                     tokens: {
                         ownercompany: organization_name,
-                        registration_link: registration_link
+                        registration_link: registration_link,
+                        name: name,
+                        inviter_email: inviter_email
                     }
                 })
             });

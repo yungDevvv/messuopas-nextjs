@@ -26,15 +26,17 @@ const todoSchema = z.object({
 });
 
 
-export default function TodoClientPage({ todos, additionalSectionTodos, subsectionId, sectionPath }) {
+export default function TodoClientPage({ todos, additionalSectionTodos, subsectionId, sectionPath, user }) {
     const { onOpen } = useModal();
     const [tab, setTab] = useState(1);
     const [isUploading, setIsUploading] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
     const router = useRouter();
-    const { user, currentSection, currentSubSection } = useAppContext();
-    const isAdditionalSection = currentSubSection?.$collectionId === "additional_subsections";
-   
+    const {user: CURR, currentSection, currentSubSection } = useAppContext();
+    const isAdditionalSection = currentSubSection 
+        ? currentSubSection.$collectionId === "additional_subsections"
+        : (typeof window !== 'undefined' && localStorage.getItem('currentSubsectionCollectionId') === "additional_subsections");
+
     // Use appropriate todos based on section type
     const allTodos = isAdditionalSection ? (additionalSectionTodos || []) : (todos || []);
     
@@ -60,9 +62,13 @@ export default function TodoClientPage({ todos, additionalSectionTodos, subsecti
                 event: user.activeEventId
             }
             if (isAdditionalSection) {
-                body.additionalSubsection = currentSubSection.$id
+                console.log("additional")
+                body.additionalSubsection = currentSubSection ? currentSubSection.$id : localStorage.getItem('currentSubsectionId');
+                console.log(body, "additionalBODYYY123123")
             } else {
-                body.initialSubsection = currentSubSection.$id
+                console.log("initial")
+                body.initialSubsection = currentSubSection ? currentSubSection.$id : localStorage.getItem('currentSubsectionId');
+                console.log(body, "initialBODYYY123123")
             }
           
             const { error, data } = await createDocument("main_db", "todos", {body});

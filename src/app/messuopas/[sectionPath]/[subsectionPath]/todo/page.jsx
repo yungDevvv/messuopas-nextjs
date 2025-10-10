@@ -25,7 +25,7 @@ export default async function TodoPage({ params }) {
             <p className="text-gray-600 mb-6">Tähän tulee tehtävälista liittyen tähän osioon.</p>
 
             {/* Render the Client Component and pass initial data to it */}
-            <TodoClientPage subsectionId={subsectionPath} sectionPath={sectionPath} todos={data?.length > 0 ? data : additionalSectionTodos?.length > 0 ? additionalSectionTodos : []} additionalSectionTodos={additionalSectionTodos} />
+            <TodoClientPage subsectionId={subsectionPath} sectionPath={sectionPath} todos={data?.length > 0 ? data : additionalSectionTodos?.length > 0 ? additionalSectionTodos : []} additionalSectionTodos={additionalSectionTodos} user={user} />
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import ClientDashboardPage from "./_components/client-dashboard-page";
-import { getLoggedInUser, listDocuments } from "@/lib/appwrite/server";
+import { getLoggedInUser, listDocuments, deleteDocument } from "@/lib/appwrite/server";
 import { Query } from "node-appwrite";
 import { redirect } from "next/navigation";
 import { getRoleLabelFi } from "@/lib/constants/roles";
@@ -230,11 +230,54 @@ export default async function Page({ params }) {
         combinedSections,
         userSectionPreferences
     };
+    
+    const { data: invitation_tokens } = await listDocuments('main_db', 'invitation_tokens', [Query.equal('organizationId', orgId)]);
 
+    // Inline comment: Step 1 - compute pendingInvitations without deleting tokens
+    const allTokenEmails = Array.from(new Set((invitation_tokens || []).map(t => (t.email || '').toLowerCase()).filter(Boolean)));
+    let existingUsersByEmail = new Set();
+    if (allTokenEmails.length > 0) {
+        try {
+            // Inline comment: query users collection by email list
+            const { data: usersByEmail } = await listDocuments('main_db', 'users', [
+                Query.equal('email', allTokenEmails)
+            ]);
+            existingUsersByEmail = new Set((usersByEmail || []).map(u => (u.email || '').toLowerCase()).filter(Boolean));
+        } catch (e) {
+            console.error('Error checking users by email for invitations:', e);
+        }
+    }
 
+    const pendingInvitations = (invitation_tokens || [])
+        .filter(t => {
+            const emailLc = (t.email || '').toLowerCase();
+            // Inline comment: pending if email not found in users collection
+            return emailLc && !existingUsersByEmail.has(emailLc);
+        })
+        .map(t => ({
+            $id: t.$id,
+            email: t.email,
+            eventIds: t.eventIds,
+            expiresAt: t.expiresAt,
+            used: t.used,
+            usedAt: t.usedAt,
+            inviterUserId: t.inviterUserId
+        }));
 
+    // Inline comment: Step 3 - auto-delete tokens for emails already present in members list
+    try {
+        const memberEmails = new Set((members || []).map(m => (m.email || '').toLowerCase()).filter(Boolean));
+        for (const tok of (invitation_tokens || [])) {
+            const elc = (tok.email || '').toLowerCase();
+            if (elc && memberEmails.has(elc)) {
+                await deleteDocument('main_db', 'invitation_tokens', tok.$id);
+            }
+        }
+    } catch (delErr) {
+        console.error('Error auto-deleting invitation tokens for existing members:', delErr);
+    }
 
     return (
-        <ClientDashboardPage {...clientProps} />
+        <ClientDashboardPage {...clientProps} pendingInvitations={pendingInvitations} />
     );
 }

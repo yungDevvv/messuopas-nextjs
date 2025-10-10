@@ -38,68 +38,66 @@ export default function EventModal() {
     const isModalOpen = isOpen && type === "event-modal";
 
     async function onSubmit(values) {
-        
+      
         try {
             setIsLoading(true);
             if (user.role === "admin") {
                 
                 // Build body depending on current admin owner selection
-                const orgId = data?.organization?.$id ?? null; // organization owner
+                const orgId = data?.event?.organization?.$id ?? null; // organization owner
                 const selectedUserId = data?.user?.$id ?? null; // user owner
-
-                if (!orgId && !selectedUserId) {
-                    toast.error("Valitse ensin omistaja (organisaatio tai käyttäjä)");
-                    return;
-                }
+                
+                // if (!orgId && !selectedUserId) {
+                    
+                //     toast.error("Valitse ensin pääkäyttäjä (organisaatio tai käyttäjä)");
+                //     return;
+                // }
                 const body = {
                     ...values,
                     // organization: orgId,
                     // user: selectedUserId,
                 };
 
-
-                if (data.event) {
+                console.log("3333333333333333333333")
+                if (data?.event) {
+                    console.log("2222222222222222222222222222222")
                     await updateDocument("main_db", "events", data.event.$id, body);
-                    // line comment: update local events list to reflect new name instantly
-                    // if (setEvents) {
-                    //     setEvents((prev = []) => prev.map(e => e.$id === data.event.$id ? { ...e, ...body } : e));
-                    // }
+                  
                     if (data?.fetchAll) { // admin panel update
-                        console.log("Fetching organizations123123123");
+                        
                         data.fetchAll();
                     }
+
                     router.refresh();
                     form.reset();
                     toast.success("Messut ovat muokattu onnistuneesti!");
                     return;
                 } else {
-                    console.log("CREATE TASDASDASDASDASD");
-                    if (orgId) body.organization = orgId;
+                    console.log("11111111111111111111111111111111111")
+                    body.organization = data.organization.$id;
                     if (selectedUserId) body.user = selectedUserId;
-                    
+                    console.log(body, "123123123123123")
                     const { data: created, error: createErr } = await createDocument("main_db", "events", { body });
                     if (createErr) throw createErr;
-                    // if (created?.$id) {
-                    //     await updateDocument("main_db", "users", user.$id, { activeEventId: created.$id }); // line comment: set newly created event active
-                    //     if (setEvents && created) {
-                    //         setEvents((prev = []) => [...prev, created]); // line comment: append newly created event
-                    //     }
-                    // }
+
                 }
-                console.log("data123123123123", data);
+
                 if (data?.fetchAll) { // admin panel update
-                    console.log("Fetching organizations123123123");
                     data.fetchAll();
                 }
+
                 router.refresh();
                 form.reset();
                 toast.success("Messut ovat luotu onnistuneesti!");
                 return;
             }
+
             if (data.event) {
+               
                 await updateDocument("main_db", "events", data.event.$id, {
                     ...values
                 })
+                console.log(...values, "...values...values...values")
                 // line comment: update local events list for non-admin path
                 if (setEvents && user.role !== "admin") {
                     setEvents((prev = []) => prev.map(e => e.$id === data.event.$id ? { ...e, ...values } : e));
@@ -121,12 +119,6 @@ export default function EventModal() {
                     }
                 });
                 if (createErr) throw createErr;
-                // if (created?.$id) {
-                //     await updateDocument("main_db", "users", user.$id, { activeEventId: created.$id }); // line comment: set newly created event active for normal user
-                //     if (setEvents && created) {
-                //         setEvents((prev = []) => [...prev, created]);
-                //     }
-                // }
                 router.refresh();
                 form.reset();
                 toast.success("Messut ovat luotu onnistuneesti!");

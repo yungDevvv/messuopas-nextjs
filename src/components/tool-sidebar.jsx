@@ -13,24 +13,38 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
     const { sectionPath, subsectionPath } = useParams();
     const pathname = usePathname();
     const { user, sections } = useAppContext();
-
+    
     // It shouldn't render if we're not on a page that needs it.
-    if (!sectionPath || !subsectionPath) {
-        if (!pathname.includes('/admin') && !pathname.includes('/account') && !pathname.includes('/dashboard')) {
-            return null;
-        }
-    }
+    // if (!sectionPath || !subsectionPath) {
+    //     if (!pathname.includes('/admin') && !pathname.includes('/account') && !pathname.includes('/dashboard')) {
+    //         return null;
+    //     }
+    // }
+
+    // Check if current subsection is additional
+    const isCurrentSubsectionAdditional = typeof window !== 'undefined' 
+        && localStorage.getItem('currentSubsectionCollectionId') === "additional_subsections";
+
+    // Find first initial section and its first subsection
+    const firstInitialSection = sections.find(section => section.$collectionId === "initial_sections");
+    const firstInitialSubsection = firstInitialSection?.initialSubsections?.[0];
 
     // Handle different base URLs based on current page
     const isNotSectionPage = pathname.includes('/admin') || pathname.includes('/account') || pathname.includes('/dashboard');
     const baseUrl = isNotSectionPage ? '/messuopas' : `/messuopas/${sectionPath}/${subsectionPath}`;
     const firstSection = sections.find(section => section.order === 0);
+    
+    // For collaborators, use initial section if current is additional
+    const collaboratorsBaseUrl = isCurrentSubsectionAdditional && firstInitialSection && firstInitialSubsection
+        ? `/messuopas/${firstInitialSection.$id}/${firstInitialSubsection.$id}`
+        : baseUrl;
+
     const tools = [
         { id: 'opas', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}` : baseUrl, icon: BookText, label: 'Opas' },
         { id: 'notes', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/notes` : `${baseUrl}/notes`, icon: NotebookPen, label: 'Muistiinpanot' },
         { id: 'documents', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/documents` : `${baseUrl}/documents`, icon: FileUp, label: 'Liitteet' },
         { id: 'todo', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/todo` : `${baseUrl}/todo`, icon: ListTodo, label: 'Tehtävälista' },
-        { id: 'collaborators', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/collaborators` : `${baseUrl}/collaborators`, icon: Handshake, label: 'Yhteistyökumppanit' },
+        { id: 'collaborators', href: isNotSectionPage ? `/messuopas/${firstSection.$id}/${firstSection.initialSubsections[0].$id}/collaborators` : `${collaboratorsBaseUrl}/collaborators`, icon: Handshake, label: 'Yhteistyökumppanit' },
     ];
 
     const activeTool = tools.slice().reverse().find(tool => pathname === tool.href || (tool.id === 'opas' && pathname.startsWith(baseUrl)));
@@ -86,6 +100,7 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
                         <SquareUser className="w-5 h-5" />
                         <span>Tili</span>
                     </Link> */}
+                   
                     {(user.role === "premium_user" || user.role === "customer_admin") && (
                         <Link
                             href="/messuopas/dashboard"
@@ -105,7 +120,7 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
                     {user.role === "admin" && (
                         <div className='border-t pt-2 pb-1 my-1'>
                             <Link
-                                href="/messuopas/admin"
+                                href="/messuopas/admin?tab=kayttajat"
                                 onClick={onLinkClick}
                                 className={cn(
                                     "flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900",

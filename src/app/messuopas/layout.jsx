@@ -86,9 +86,9 @@ export default async function Layout({ children }) {
         const { data: preferencesData } = await listDocuments('main_db', 'user_section_preferences', preferencesQuery);
         userSectionPreferences = preferencesData?.[0] || null;
         
-        console.log('Sidebar - User section preferences:', userSectionPreferences);
+        // console.log('Sidebar - User section preferences:', userSectionPreferences);
     } catch (preferencesError) {
-        console.error('Error fetching user section preferences:', preferencesError);
+        // console.error('Error fetching user section preferences:', preferencesError);
     }
 
 
@@ -137,7 +137,7 @@ export default async function Layout({ children }) {
 
         // If no preferences found, return sections in default order
         if (!userSectionPreferences || !userSectionPreferences.orderedActiveSections) {
-            console.log('Sidebar - No user preferences found for combined sections, using default order');
+            // console.log('Sidebar - No user preferences found for combined sections, using default order');
             return allSections.sort((a, b) => (a.order || 0) - (b.order || 0)).map(section => ({
                 ...section,
                 initialSubsections: (section.subsections || []).map(sub => ({

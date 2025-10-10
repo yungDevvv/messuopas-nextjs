@@ -5,11 +5,11 @@ import { getDocument } from "@/lib/appwrite/server";
 
 export async function POST(request) {
     try {
-        const { email, organizationId, eventIds, inviterUserId, inviterName } = await request.json();
+        const { email, organizationId, eventIds, inviterUserId, inviterName, inviterEmail } = await request.json();
 
-        if (!email || !organizationId || !inviterUserId || !inviterName) {
+        if (!email || !organizationId || !inviterUserId || !inviterName || !inviterEmail) {
             return NextResponse.json(
-                { error: "Email, organizationId, inviterUserId ja inviterName ovat pakollisia" },
+                { error: "Email, organizationId, inviterUserId, inviterName ja inviterEmail ovat pakollisia" },
                 { status: 400 }
             );
         }
@@ -28,6 +28,8 @@ export async function POST(request) {
         await mauticEmailService.sendInvitationEmail({
             reciever_email: email,
             organization_name: organization?.name || 'Organisaatio',
+            name: inviterName,
+            inviter_email: inviterEmail,
             registration_link: registrationLink
         });
 

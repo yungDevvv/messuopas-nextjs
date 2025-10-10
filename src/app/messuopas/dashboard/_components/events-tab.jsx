@@ -40,7 +40,6 @@ export default function EventsTab({ organizationEvents, user, members }) {
             router.refresh();
             toast.success("Messu poistettu");
         } catch (e) {
-            console.error(e);
             toast.error("Tapahtui virhe");
         } finally {
             setConfirmDeleteEventId(null);
@@ -51,6 +50,13 @@ export default function EventsTab({ organizationEvents, user, members }) {
         setTargetEvent(event);
         setEventAccessOpen(true);
     };
+
+    // Filter events based on user role and organization
+    const isOwner = user?.organization && user.organization.owners.find((owner) => owner.$id === user.$id);
+    const filteredEvents = (!user?.organization || isOwner)
+        ? organizationEvents // Show all events if no organization or user is owner
+        : organizationEvents.filter(ev => user.accessibleEventsIds?.includes(ev.$id)); // Show only accessible events for members
+
     return (
         <div>
             <div className="space-y-4">
@@ -64,14 +70,16 @@ export default function EventsTab({ organizationEvents, user, members }) {
                             Luo ja hallitse organisaatiosi messuja
                         </p>
                     </div>
-                    <Button onClick={() => onOpen("event-modal")} className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        Luo uudet messut
-                    </Button>
+                    {!user.organization || user.organization.owners.find((owner) => owner.$id === user.$id) ? (
+                        <Button onClick={() => onOpen("event-modal")} className="gap-2">
+                            <Plus className="w-4 h-4" />
+                            Luo uudet messut
+                        </Button>
+                    ) : null}
                 </div>
 
                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                    {(!organizationEvents || organizationEvents.length === 0) ? (
+                    {(!filteredEvents || filteredEvents.length === 0) ? (
                         <div className="text-center py-8">
                             <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
                             <p className="text-muted-foreground">Ei messuja vielä</p>
@@ -79,7 +87,7 @@ export default function EventsTab({ organizationEvents, user, members }) {
                         </div>
                     ) : (
                         <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                            {organizationEvents.map((ev) => (
+                            {filteredEvents.map((ev) => (
                                 <div key={ev.$id} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-3">
@@ -91,37 +99,39 @@ export default function EventsTab({ organizationEvents, user, members }) {
 
                                             </div>
                                         </div>
+                                        {(!user?.organization || user.organization.owners.find((owner) => owner.$id === user.$id) && (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                        <MoreVertical className="w-4 h-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleEditEvent(ev.$id)}>
+                                                        <Settings className="w-4 h-4 mr-2" />
+                                                        Muokkaa messua
+                                                    </DropdownMenuItem>
+                                                    {user?.organization && user.organization.owners.find((owner) => owner.$id === user.$id) ? <DropdownMenuItem onClick={() => openEventAccessModal(ev)}>
+                                                        <Shield className="w-4 h-4 mr-2" />
+                                                        Hallitse käyttöoikeuksia
+                                                    </DropdownMenuItem> : null}
 
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="sm">
-                                                    <MoreVertical className="w-4 h-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleEditEvent(ev.$id)}>
-                                                    <Settings className="w-4 h-4 mr-2" />
-                                                    Muokkaa messua
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => openEventAccessModal(ev)}>
-                                                    <Shield className="w-4 h-4 mr-2" />
-                                                    Hallitse käyttöoikeuksia
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="text-red-600"
-                                                    onClick={() => onOpen("confirm-modal",
-                                                        {
-                                                            title: "Poista messut",
-                                                            description: `Haluatko varmasti poistaa messut "${ev.name}"?`,
-                                                            callback: () => handleRemoveEvent(ev.$id)
-                                                        }
-                                                    )}
-                                                >
-                                                    <Trash2 className="w-4 h-4 mr-2" />
-                                                    Poista messu
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                    <DropdownMenuItem
+                                                        className="text-red-600"
+                                                        onClick={() => onOpen("confirm-modal",
+                                                            {
+                                                                title: "Poista messut",
+                                                                description: `Haluatko varmasti poistaa messut "${ev.name}"?`,
+                                                                callback: () => handleRemoveEvent(ev.$id)
+                                                            }
+                                                        )}
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Poista messu
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        ))}
 
                                     </div>
                                 </div>
@@ -130,8 +140,8 @@ export default function EventsTab({ organizationEvents, user, members }) {
                     )}
                 </div>
             </div>
-             {/* Event Access Management Modal */}
-             <EventAccessModal
+            {/* Event Access Management Modal */}
+            <EventAccessModal
                 open={eventAccessOpen}
                 onOpenChange={setEventAccessOpen}
                 event={targetEvent}

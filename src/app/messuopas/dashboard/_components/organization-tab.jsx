@@ -23,10 +23,7 @@ import { useRouter } from "next/navigation";
 import { useModal } from "@/hooks/use-modal";
 import { createUserRecoveryPassword } from "@/lib/appwrite/server";
 // Inline comment: Client receives fully derived props from server
-export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, members, organizationEvents }) {
-
-    const [loading, setLoading] = useState(false);
-    const [inviteEmail, setInviteEmail] = useState("");
+export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, members, organizationEvents, pendingInvitations = [] }) {
     const router = useRouter();
     const { onOpen } = useModal();
     const [memberBusy, setMemberBusy] = useState(null); // Inline comment: track busy member id
@@ -36,12 +33,6 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
     const [accessOpen, setAccessOpen] = useState(false); // Inline comment: access modal visibility
     const [targetMember, setTargetMember] = useState(null); // Inline comment: member being edited
     const [selectedEventIds, setSelectedEventIds] = useState([]); // Inline comment: checked events for member
-    const [confirmDeleteEventId, setConfirmDeleteEventId] = useState(null); // Inline comment: event delete confirm state
-    const [eventAccessOpen, setEventAccessOpen] = useState(false); // Inline comment: event access modal visibility
-    const [targetEvent, setTargetEvent] = useState(null); // Inline comment: event being managed
-
-
-
 
     const handleInvite = async (email, selectedEventIds) => {
         try {
@@ -55,7 +46,8 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                     organizationId: orgId,
                     eventIds: selectedEventIds, // Changed from eventId to eventIds array
                     inviterUserId: user.$id,
-                    inviterName: user.name
+                    inviterName: user.name,
+                    inviterEmail: user.email
                 }),
             });
 
@@ -119,7 +111,7 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
         return names.join(", ");
     };
 
-   
+
 
     const handleSetOwner = async (memberId) => {
 
@@ -127,8 +119,29 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
             await updateDocument('main_db', 'organizations', orgId, {
                 owners: [...user.organization.owners, memberId]
             });
+            await updateDocument('main_db', 'users', memberId, {
+                role: "customer_admin"
+            });
             router.refresh();
-            toast.success("Käyttäjä on asetettu omistajaksi");
+            toast.success("Käyttäjä on asetettu pääkäyttäjäksi");
+            // Inline comment: ideally refresh organization from backend or mutate context
+        } catch (e) {
+            console.error(e);
+            toast.error("Tapahtui virhe");
+        }
+    };
+
+    const handleRemoveOwner = async (memberId) => {
+        try {
+            const updatedOwners = user.organization.owners.filter(owner => owner.$id !== memberId);
+            await updateDocument('main_db', 'organizations', orgId, {
+                owners: updatedOwners
+            });
+            await updateDocument('main_db', 'users', memberId, {
+                role: "premium_user"
+            });
+            router.refresh();
+            toast.success("Pääkäyttäjän oikeudet poistettu");
             // Inline comment: ideally refresh organization from backend or mutate context
         } catch (e) {
             console.error(e);
@@ -168,6 +181,63 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                                 </Button>
                             </div>
                         </div>
+
+                        {/* Pending invitations list */}
+                        {pendingInvitations.length > 0 && (
+                            <div className="space-y-4">
+                                <div className="space-y-1">
+                                    <h3 className="text-base font-semibold flex items-center gap-2">
+                                        <Mail className="w-4 h-4" />
+                                        Odottavat kutsut
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">Kutsutut käyttäjät, jotka eivät ole vielä liittyneet</p>
+                                </div>
+                                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        {pendingInvitations.map((inv) => (
+                                            <div key={inv.$id} className="p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                                                            <Mail className="w-4 h-4 text-orange-600" />
+                                                        </div>
+                                                        <div className="space-y-0.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium">{inv.email}</span>
+                                                                <Badge variant="secondary" className="text-orange-600">Odottaa</Badge>
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                Messut: {getEventTitles(inv.eventIds)}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                Vanhenee: {inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString('fi-FI') : '—'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-red-600"
+                                                        onClick={async () => {
+                                                            try {
+                                                                await deleteDocument('main_db', 'invitation_tokens', inv.$id);
+                                                                toast.success('Kutsu peruutettu');
+                                                                router.refresh();
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                toast.error('Kutsun peruuttaminen epäonnistui');
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2" /> Peruuta
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Edit organization name modal */}
                         <OrganizationModal
@@ -226,8 +296,8 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                                                                     <span className="font-medium">{m.name}</span>
                                                                     {isOwner && (
                                                                         <Badge variant="secondary" className="text-green-600">
-                                                                            {/* <Crown className="w-3 h-3 mr-1" /> */}
-                                                                            Omistaja
+                                                                            {/* Owner badge */}
+                                                                            Pääkäyttäjä
                                                                         </Badge>
                                                                     )}
                                                                 </div>
@@ -244,23 +314,48 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
-                                                                {!isOwner && (
+
+                                                                {!isOwner ? (
                                                                     <>
                                                                         <DropdownMenuItem
                                                                             onClick={() => onOpen("confirm-modal", {
                                                                                 type: "confirm",
-                                                                                title: "Aseta käyttäjä organisaation omistajaksi",
-                                                                                description: `Haluatko varmasti asettaa käyttäjän "${m.name}" organisaation omistajaksi?`,
+                                                                                title: "Aseta käyttäjä organisaation pääkäyttäjäksi",
+                                                                                description: `Haluatko varmasti asettaa käyttäjän "${m.name}" organisaation pääkäyttäjäksi?`,
                                                                                 callback: () => handleSetOwner(m.$id)
                                                                             })}
                                                                         >
                                                                             <Crown className="w-4 h-4 mr-2" />
-                                                                            Aseta omistajaksi
+                                                                            Aseta pääkäyttäjäksi
                                                                         </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => openAccessModal(m)}>
-                                                                            <Shield className="w-4 h-4 mr-2" />
-                                                                            Hallitse käyttöoikeuksia
+                                                                        {console.log(m, "mm123123")}
+                                                                        {m.role !== "customer_admin" && (
+                                                                            <DropdownMenuItem onClick={() => openAccessModal(m)}>
+                                                                                <Shield className="w-4 h-4 mr-2" />
+                                                                                Hallitse käyttöoikeuksia
+                                                                            </DropdownMenuItem>
+                                                                        )}
+
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => onOpen("confirm-modal", {
+                                                                                type: "confirm",
+                                                                                title: "Poista pääkäyttäjän oikeudet",
+                                                                                description: `Haluatko varmasti poistaa käyttäjältä "${m.name}" pääkäyttäjän oikeudet?`,
+                                                                                callback: () => handleRemoveOwner(m.$id)
+                                                                            })}
+                                                                        >
+                                                                            <Crown className="w-4 h-4 mr-2" />
+                                                                            Poista pääkäyttäjän oikeudet
                                                                         </DropdownMenuItem>
+                                                                        {m.role !== "customer_admin" && (
+                                                                            <DropdownMenuItem onClick={() => openAccessModal(m)}>
+                                                                                <Shield className="w-4 h-4 mr-2" />
+                                                                                Hallitse käyttöoikeuksia
+                                                                            </DropdownMenuItem>
+                                                                        )}
                                                                     </>
                                                                 )}
                                                                 <DropdownMenuItem
@@ -283,7 +378,7 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                             </div>
                         </div>
 
-                       
+
                     </div>
                 </div>
             )}
@@ -316,10 +411,11 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                 }}
             />
 
-           
+
 
             {/* Invite User Modal */}
             <InviteUserModal />
         </div>
+
     );
 }

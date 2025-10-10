@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, FolderOpen, Eye } from "lucide-react";
+import { Plus, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { updateDocument, deleteDocument, createDocument } from "@/lib/appwrite/server";
 import { slugify } from "@/lib/utils";
@@ -33,7 +33,6 @@ export default function SectionsTab({ additionalSections, user, events, combined
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [createMode, setCreateMode] = useState(null); // 'section' | 'subsection' | null
     const [editMode, setEditMode] = useState(null); // { type: 'section'|'subsection', item: object } | null
-    const [activeEditMode, setActiveEditMode] = useState(false); // Mode for editing active states
     const router = useRouter();
 
     const sensors = useSensors(
@@ -61,17 +60,17 @@ export default function SectionsTab({ additionalSections, user, events, combined
                         ...subsection,
                         active: subsection.active === true // Only true if explicitly set to true
                     }));
-                
+
                 // Check if section should be active based on subsections
                 const hasActiveSubsections = subsections.some(sub => sub.active === true);
-                
+
                 console.log(`Section "${section.title}":`, {
                     originalActive: section.active,
                     subsectionsActive: subsections.map(sub => ({ title: sub.title, active: sub.active })),
                     hasActiveSubsections,
                     finalActive: hasActiveSubsections
                 });
-                
+
                 return {
                     ...section,
                     order: index,
@@ -108,7 +107,7 @@ export default function SectionsTab({ additionalSections, user, events, combined
                 setTimeout(() => {
                     toast.success('Osioiden järjestys päivitetty');
                 }, 100);
-                
+
             } catch (error) {
                 console.error('Error updating section order:', error);
                 toast.error('Virhe järjestyksen päivittämisessä');
@@ -330,61 +329,65 @@ export default function SectionsTab({ additionalSections, user, events, combined
     };
 
     // Toggle section active state (affects all subsections)
-    const toggleSectionActive = (sectionId) => {
-        setSections(prevSections => {
-            return prevSections.map(section => {
-                if (section.$id === sectionId) {
-                    const newActiveState = !section.active;
-                    const updatedSubsections = (section.subsections || []).map(subsection => ({
-                        ...subsection,
-                        active: newActiveState // When section is toggled, all subsections follow
-                    }));
-                    return { ...section, active: newActiveState, subsections: updatedSubsections };
-                }
-                return section;
-            });
+    const toggleSectionActive = async (sectionId) => {
+        const updatedSections = sections.map(section => {
+            if (section.$id === sectionId) {
+                const newActiveState = !section.active;
+                const updatedSubsections = (section.subsections || []).map(subsection => ({
+                    ...subsection,
+                    active: newActiveState // When section is toggled, all subsections follow
+                }));
+                return { ...section, active: newActiveState, subsections: updatedSubsections };
+            }
+            return section;
         });
+
+        setSections(updatedSections);
+
+        // Auto-save changes
+        try {
+            await updateUserSectionPreferences(updatedSections);
+            router.refresh();
+            toast.success('Näkyvyys päivitetty');
+        } catch (error) {
+            console.error('Error saving visibility:', error);
+            toast.error('Virhe näkyvyyden tallentamisessa');
+        }
     };
 
     // Toggle individual subsection active state
-    const toggleSubsectionActive = (sectionId, subsectionId) => {
-        setSections(prevSections => {
-            return prevSections.map(section => {
-                if (section.$id === sectionId) {
-                    const updatedSubsections = (section.subsections || []).map(subsection => {
-                        if (subsection.$id === subsectionId) {
-                            return { ...subsection, active: !subsection.active };
-                        }
-                        return subsection;
-                    });
-                    
-                    // Check if all subsections are inactive, if so, make section inactive too
-                    const hasActiveSubsections = updatedSubsections.some(sub => sub.active === true);
-                    
-                    return { 
-                        ...section, 
-                        subsections: updatedSubsections,
-                        active: hasActiveSubsections // Section is active only if at least one subsection is active
-                    };
-                }
-                return section;
-            });
-        });
-    };
+    const toggleSubsectionActive = async (sectionId, subsectionId) => {
+        const updatedSections = sections.map(section => {
+            if (section.$id === sectionId) {
+                const updatedSubsections = (section.subsections || []).map(subsection => {
+                    if (subsection.$id === subsectionId) {
+                        return { ...subsection, active: !subsection.active };
+                    }
+                    return subsection;
+                });
 
-    // Save active states to user preferences
-    const saveActiveStates = async () => {
+                // Check if all subsections are inactive, if so, make section inactive too
+                const hasActiveSubsections = updatedSubsections.some(sub => sub.active === true);
+
+                return {
+                    ...section,
+                    subsections: updatedSubsections,
+                    active: hasActiveSubsections // Section is active only if at least one subsection is active
+                };
+            }
+            return section;
+        });
+
+        setSections(updatedSections);
+
+        // Auto-save changes
         try {
-            setIsSubmitting(true);
-            await updateUserSectionPreferences(sections);
+            await updateUserSectionPreferences(updatedSections);
             router.refresh();
-            toast.success('Aktiivisuudet tallennettu');
-            setActiveEditMode(false);
+            toast.success('Näkyvyys päivitetty');
         } catch (error) {
-            console.error('Error saving active states:', error);
-            toast.error('Virhe aktiivisuuksien tallentamisessa');
-        } finally {
-            setIsSubmitting(false);
+            console.error('Error saving visibility:', error);
+            toast.error('Virhe näkyvyyden tallentamisessa');
         }
     };
 
@@ -419,42 +422,18 @@ export default function SectionsTab({ additionalSections, user, events, combined
                     <h2 className="text-xl font-semibold">Osioiden hallinta</h2>
                     <p><span className="font-bold"> {events.find(event => event.$id === user.activeEventId)?.name}</span> messun osiot</p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                    {!activeEditMode ? (
-                        <>
-                            <Button
-                                onClick={() => setActiveEditMode(true)}
-                                variant="ghost"
-                                className=""
-                            >
-                                <Eye className="w-4 h-4" />
-                                Hallitse näkyvyyttä
-                            </Button>
-                            <Button onClick={() => setCreateMode('section')}>
-                                <Plus className="w-4 h-4 " />
-                                Luo uusi osio
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <Button
-                                onClick={() => setActiveEditMode(false)}
-                                variant="outline"
-                                disabled={isSubmitting}
-                            >
-                                Peruuta
-                            </Button>
-                            <Button
-                                onClick={saveActiveStates}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                disabled={isSubmitting}
-                            >
-                                Tallenna
-                            </Button>
-                        </>
-                    )}
-                </div>
+                {!user.organization || user.organization.owners.find(o => o.$id === user.$id) && (
+                    <Button onClick={() => setCreateMode('section')}>
+                        <Plus className="w-4 h-4 " />
+                        Luo uusi osio
+                    </Button>
+                )}
+                {/* <div className="flex items-center gap-3">
+                    <Button onClick={() => setCreateMode('section')}>
+                        <Plus className="w-4 h-4 " />
+                        Luo uusi osio
+                    </Button>
+                </div> */}
             </div>
 
             <div className="space-y-4">
@@ -474,25 +453,6 @@ export default function SectionsTab({ additionalSections, user, events, combined
                             <p>Ei osioita vielä luotu</p>
                         </CardContent>
                     </Card>
-                ) : activeEditMode ? (
-                    <div className="space-y-4">
-                        {sections.map((section, sectionIndex) => (
-                            <SectionCard
-                                key={section.$id}
-                                section={section}
-                                sectionIndex={sectionIndex}
-                                expandedSections={expandedSections}
-                                toggleSection={toggleSection}
-                                startEditingSection={startEditingSection}
-                                deleteSection={deleteSection}
-                                deleteSubsection={deleteSubsection}
-                                onSubsectionDragEnd={handleSubsectionDragEnd}
-                                activeEditMode={activeEditMode}
-                                toggleSectionActive={toggleSectionActive}
-                                toggleSubsectionActive={toggleSubsectionActive}
-                            />
-                        ))}
-                    </div>
                 ) : (
                     <DndContext
                         sensors={sensors}
@@ -515,9 +475,9 @@ export default function SectionsTab({ additionalSections, user, events, combined
                                         deleteSection={deleteSection}
                                         deleteSubsection={deleteSubsection}
                                         onSubsectionDragEnd={handleSubsectionDragEnd}
-                                        activeEditMode={activeEditMode}
                                         toggleSectionActive={toggleSectionActive}
                                         toggleSubsectionActive={toggleSubsectionActive}
+                                        user={user}
                                     />
                                 ))}
                             </div>
@@ -527,7 +487,8 @@ export default function SectionsTab({ additionalSections, user, events, combined
             </div>
 
             {/* Add section at the end if not in create mode */}
-            {createMode !== 'section' && sections.length > 0 && (
+            
+            {/* {createMode !== 'section' && sections.length > 0 && (
                 <div className="pt-4">
                     <Button
                         variant="outline"
@@ -538,7 +499,7 @@ export default function SectionsTab({ additionalSections, user, events, combined
                         Lisää uusi osio
                     </Button>
                 </div>
-            )}
+            )} */}
         </div>
     );
 }

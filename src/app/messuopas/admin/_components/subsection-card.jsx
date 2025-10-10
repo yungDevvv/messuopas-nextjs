@@ -3,8 +3,9 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, FileText, GripVertical } from "lucide-react";
+import { Edit, Trash2, FileText, GripVertical, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useModal } from "@/hooks/use-modal";
 
 export default function SubsectionCard({ 
     subsection, 
@@ -15,6 +16,7 @@ export default function SubsectionCard({
     deleteSubsection 
 }) {
     const router = useRouter();
+    const { onOpen } = useModal();
     
     const {
         attributes,
@@ -52,6 +54,7 @@ export default function SubsectionCard({
                 <span className="font-medium text-base">{subsection.title}</span>
             </div>
             <div className="flex space-x-2">
+               
                 <Button
                     variant="ghost"
                     onClick={() => router.push(`/messuopas/admin/subsection/${subsection.$id}/edit`)}
@@ -69,3 +72,4 @@ export default function SubsectionCard({
         </div>
     );
 }
+
