@@ -23,13 +23,16 @@ import { useRouter } from "next/navigation";
 import { useModal } from "@/hooks/use-modal";
 import { createUserRecoveryPassword } from "@/lib/appwrite/server";
 // Inline comment: Client receives fully derived props from server
-export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, members, organizationEvents, pendingInvitations = [] }) {
+export default function ClientAccountPage({ user, orgName, orgEmail, orgId, isOrgOwner, members, organizationEvents, pendingInvitations = [] }) {
     const router = useRouter();
     const { onOpen } = useModal();
     const [memberBusy, setMemberBusy] = useState(null); // Inline comment: track busy member id
     const [orgDisplayName, setOrgDisplayName] = useState(orgName || ""); // Inline comment: shown org title
+    const [orgDisplayEmail, setOrgDisplayEmail] = useState(orgEmail || ""); // Inline comment: shown org email
     const [editOpen, setEditOpen] = useState(false); // Inline comment: edit modal visibility
     const [editName, setEditName] = useState(orgName || ""); // Inline comment: edit field value
+    const [editEmailOpen, setEditEmailOpen] = useState(false); // Inline comment: edit email modal visibility
+    const [editEmail, setEditEmail] = useState(orgEmail || ""); // Inline comment: edit email field value
     const [accessOpen, setAccessOpen] = useState(false); // Inline comment: access modal visibility
     const [targetMember, setTargetMember] = useState(null); // Inline comment: member being edited
     const [selectedEventIds, setSelectedEventIds] = useState([]); // Inline comment: checked events for member
@@ -73,6 +76,25 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
             setOrgDisplayName(editName);
             toast.success("Organisaation nimi tallennettu");
             setEditOpen(false);
+        } catch (e) {
+            console.error(e);
+            toast.error("Tallennus epäonnistui");
+        }
+    };
+
+    // Save organization email
+    const handleSaveOrgEmail = async () => {
+        try {
+            const { error } = await updateDocument('main_db', 'organizations', orgId, {
+                organizationEmail: editEmail.trim() || null
+            });
+            
+            if (error) throw error;
+            
+            setOrgDisplayEmail(editEmail);
+            toast.success("Organisaation sähköposti tallennettu");
+            setEditEmailOpen(false);
+            router.refresh();
         } catch (e) {
             console.error(e);
             toast.error("Tallennus epäonnistui");
@@ -166,7 +188,8 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
 
                     <div className="space-y-8">
                         {/* Organization info card */}
-                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 space-y-4">
+                            {/* Organization name */}
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
                                     <div className="text-sm text-muted-foreground">Organisaation nimi</div>
@@ -176,6 +199,21 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => { setEditName(orgDisplayName); setEditOpen(true); }}
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </Button>
+                            </div>
+
+                            {/* Organization email */}
+                            <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                                <div className="space-y-1">
+                                    <div className="text-sm text-muted-foreground">Organisaation sähköposti</div>
+                                    <div className="text-base font-medium">{orgDisplayEmail || "—"}</div>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => { setEditEmail(orgDisplayEmail); setEditEmailOpen(true); }}
                                 >
                                     <Pencil className="w-4 h-4" />
                                 </Button>
@@ -411,7 +449,37 @@ export default function ClientAccountPage({ user, orgName, orgId, isOrgOwner, me
                 }}
             />
 
-
+            {/* Edit organization email modal */}
+            <Dialog open={editEmailOpen} onOpenChange={setEditEmailOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Muokkaa organisaation sähköpostia</DialogTitle>
+                        <DialogDescription>
+                            Päivitä organisaatiosi sähköpostiosoite
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="org-email">Sähköpostiosoite</Label>
+                            <Input
+                                id="org-email"
+                                type="email"
+                                placeholder="esim. info@organisaatio.fi"
+                                value={editEmail}
+                                onChange={(e) => setEditEmail(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditEmailOpen(false)}>
+                            Peruuta
+                        </Button>
+                        <Button onClick={handleSaveOrgEmail}>
+                            Tallenna
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Invite User Modal */}
             <InviteUserModal />

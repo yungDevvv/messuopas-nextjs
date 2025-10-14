@@ -279,6 +279,39 @@ class MauticEmailService {
             throw error;
         }
     }
+
+    async sendNewSectionNotification({ reciever_email, content_link, reciever_name }) {
+        try {
+            // Check or create contact
+            let contactId = await this.checkContactExists(reciever_email);
+
+            if (!contactId) {
+                contactId = await this.createContact(reciever_email, reciever_name || '');
+            }
+
+            const emailId = "81";
+
+            // Send new section notification email
+            const sendResponse = await fetch(`https://${MAUTIC_CONFIG.hostname}/api/emails/${emailId}/contact/${contactId}/send`, {
+                ...this.getRequestOptions('POST'),
+                body: JSON.stringify({
+                    tokens: {
+                        content_link: content_link
+                    }
+                })
+            });
+
+            if (!sendResponse.ok) {
+                throw new Error('Uuden osion ilmoituksen lähetys epäonnistui');
+            }
+
+            return await sendResponse.json();
+
+        } catch (error) {
+            console.error('Uuden osion ilmoituksen lähetys epäonnistui:', error);
+            throw error;
+        }
+    }
 }
 
 export const mauticEmailService = new MauticEmailService();

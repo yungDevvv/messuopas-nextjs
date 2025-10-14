@@ -1,6 +1,6 @@
 "use server";
 
-import { listDocuments } from '@/lib/appwrite/server';
+import { getLoggedInUser, getFilteredInitialSections } from '@/lib/appwrite/server';
 import { redirect } from 'next/navigation';
 
 // Helper to create URL-friendly slugs from titles
@@ -21,8 +21,12 @@ function slugify(text) {
 }
 
 export default async function SectionPage({ params }) {
-    const {data: sectionsResponse} = await listDocuments('main_db', 'initial_sections');
+    const user = await getLoggedInUser();
+    
+    if (!user) return redirect("/login");
+
     const { sectionPath } = await params;
+    const {data: sectionsResponse} = await getFilteredInitialSections(user);
 
     // Find the current section
     const currentSection = sectionsResponse.find(section => {

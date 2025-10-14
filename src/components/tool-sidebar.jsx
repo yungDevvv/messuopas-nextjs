@@ -32,7 +32,7 @@ export default function ToolSidebar({ onLinkClick, showCloseButton = false, onCl
     // Handle different base URLs based on current page
     const isNotSectionPage = pathname.includes('/admin') || pathname.includes('/account') || pathname.includes('/dashboard');
     const baseUrl = isNotSectionPage ? '/messuopas' : `/messuopas/${sectionPath}/${subsectionPath}`;
-    const firstSection = sections.find(section => section.order === 0);
+    const firstSection = sections[0];
     
     // For collaborators, use initial section if current is additional
     const collaboratorsBaseUrl = isCurrentSubsectionAdditional && firstInitialSection && firstInitialSubsection

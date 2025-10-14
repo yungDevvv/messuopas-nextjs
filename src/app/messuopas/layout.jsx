@@ -1,6 +1,6 @@
 "use server";
 
-import { getLoggedInUser, listDocuments } from "@/lib/appwrite/server";
+import { getLoggedInUser, listDocuments, getFilteredInitialSections } from "@/lib/appwrite/server";
 import { AppProvider } from "@/context/app-context";
 import MainLayout from "@/components/main-layout";
 import { Toaster } from "@/components/ui/sonner"
@@ -25,7 +25,7 @@ export default async function Layout({ children }) {
         const { data: privateUsersData, error: privateUsersError } = await listDocuments('main_db', 'users', [
             Query.isNull('organization')
         ]);
-        
+
         if (organizationsError) console.error(organizationsError);
         if (privateUsersError) console.error(privateUsersError);
 
@@ -33,7 +33,7 @@ export default async function Layout({ children }) {
         privateUsers = privateUsersData;
     }
 
-    const { data, error: initialSectionsError } = await listDocuments('main_db', 'initial_sections');
+    const { data, error: initialSectionsError } = await getFilteredInitialSections(user);
 
     if (initialSectionsError) {
         console.error('Error fetching initial data:', initialSectionsError);
@@ -75,17 +75,17 @@ export default async function Layout({ children }) {
     let userSectionPreferences = null;
     try {
         const preferencesQuery = [];
-        
+
         // Only user + event are the key variables now
         preferencesQuery.push(Query.equal('user', user.$id));
-        
+
         if (user?.activeEventId) {
             preferencesQuery.push(Query.equal('event', user.activeEventId));
         }
 
         const { data: preferencesData } = await listDocuments('main_db', 'user_section_preferences', preferencesQuery);
         userSectionPreferences = preferencesData?.[0] || null;
-        
+
         // console.log('Sidebar - User section preferences:', userSectionPreferences);
     } catch (preferencesError) {
         // console.error('Error fetching user section preferences:', preferencesError);
@@ -96,7 +96,7 @@ export default async function Layout({ children }) {
 
     // Fetch additional sections for current user and event (same logic as dashboard)
     let additionalSections = [];
-    
+
     const sectionsQuery = [];
     if (user?.organization) {
         sectionsQuery.push(Query.equal('organization', user.organization.$id));
@@ -107,7 +107,7 @@ export default async function Layout({ children }) {
     }
 
     const { data: additionalSectionsData, error: additionalSectionsError } = await listDocuments('main_db', 'additional_sections', sectionsQuery);
-    
+
     if (!additionalSectionsError && Array.isArray(additionalSectionsData)) {
         additionalSections = additionalSectionsData;
     }
@@ -173,12 +173,12 @@ export default async function Layout({ children }) {
                 const sectionIndex = unorderedSections.findIndex(s => s.$id === sectionPref.id);
                 if (sectionIndex !== -1) {
                     const section = unorderedSections.splice(sectionIndex, 1)[0];
-                    
+
                     // Apply subsection ordering and active state
                     if (sectionPref.subsections && Array.isArray(sectionPref.subsections)) {
                         const orderedSubsections = [];
                         const unorderedSubsections = [...(section.subsections || [])];
-                        
+
                         // Order subsections based on preferences
                         sectionPref.subsections
                             .sort((a, b) => (a.order || 0) - (b.order || 0))
@@ -192,13 +192,13 @@ export default async function Layout({ children }) {
                                     });
                                 }
                             });
-                        
+
                         // Add any remaining subsections that weren't in preferences
                         orderedSubsections.push(...unorderedSubsections.map(sub => ({
                             ...sub,
                             isActive: true
                         })));
-                        
+
                         section.initialSubsections = orderedSubsections;
                     } else {
                         // No subsection preferences, default all to active
@@ -207,7 +207,7 @@ export default async function Layout({ children }) {
                             isActive: true
                         }));
                     }
-                    
+
                     orderedSections.push(section);
                 }
             });

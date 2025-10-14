@@ -11,7 +11,7 @@ export default async function SubsectionPage({ params }) {
 
     let additionalSections = null;
     
-    if (user.organization) {
+    if (user?.organization) {
         const { data } = await listDocuments('main_db', 'additional_sections', [Query.equal('organization', user.organization.$id)]);
         additionalSections = data;
     } else {

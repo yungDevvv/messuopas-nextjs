@@ -1,5 +1,5 @@
 import ClientDashboardPage from "./_components/client-dashboard-page";
-import { getLoggedInUser, listDocuments, deleteDocument } from "@/lib/appwrite/server";
+import { getLoggedInUser, listDocuments, deleteDocument, getFilteredInitialSections } from "@/lib/appwrite/server";
 import { Query } from "node-appwrite";
 import { redirect } from "next/navigation";
 import { getRoleLabelFi } from "@/lib/constants/roles";
@@ -40,6 +40,7 @@ export default async function Page({ params }) {
 
     const hideSubscription = user?.role === "admin" || user?.role === "customer_admin";
     const orgName = user?.organization?.name || "";
+    const orgEmail = user?.organization?.organizationEmail || "";
     const orgId = orgIdSafe || "";
     const ownerIds = (user?.organization?.owners || []).map((o) => (typeof o === "string" ? o : o?.$id)).filter(Boolean);
     const isOrgOwner = Boolean(user?.organization && ownerIds.includes(user.$id));
@@ -68,7 +69,7 @@ export default async function Page({ params }) {
     }
 
     const { data, error } = await listDocuments('main_db', 'additional_sections', sectionsQuery);
-    const { data: initialSectionsData, error: initialSectionsError } = await listDocuments('main_db', 'initial_sections');
+    const { data: initialSectionsData, error: initialSectionsError } = await getFilteredInitialSections(user);
     const { data: eventsData, error: eventsError } = await listDocuments("main_db", "events", eventsQuery);
 
     // Get user section preferences for ordering
@@ -220,6 +221,7 @@ export default async function Page({ params }) {
         planLabel,
         hideSubscription,
         orgName,
+        orgEmail,
         orgId,
         isOrgOwner,
         members,

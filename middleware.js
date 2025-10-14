@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function middleware(request) {
-    // Check if the request is for a protected route under /messuopas
-    if (request.nextUrl.pathname.startsWith('/messuopas')) {
+    // Check if the request is for a protected route
+    const isProtectedRoute = request.nextUrl.pathname.startsWith('/messuopas');
+
+    if (isProtectedRoute) {
         try {
             // Get the session cookie
             const cookieStore = await cookies();
@@ -30,6 +32,6 @@ export async function middleware(request) {
 }
 
 export const config = {
-    // Match all routes under /messuopas
+    // Match protected routes
     matcher: '/messuopas/:path*'
 };

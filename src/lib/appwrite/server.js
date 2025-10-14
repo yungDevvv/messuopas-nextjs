@@ -115,6 +115,47 @@ export const listDocuments = cache(async (db, collection, queries) => {
     }
 });
 
+/**
+ * Fetches initial sections filtered by user's organization
+ * Block comment: This function automatically filters initial_sections based on appliedOrganizations
+ * Admin users see all sections, organization users see only sections applied to their org
+ * @param {object} user - The logged in user object
+ * @returns {Promise<{data: Array, error: any}>}
+ */
+export const getFilteredInitialSections = cache(async (user) => {
+    try {
+        const databases = new Databases(client);
+        const response = await databases.listDocuments('main_db', 'initial_sections');
+        
+        let filteredSections = response.documents;
+
+        // Filter based on user role and organization
+        if (user.role === 'admin') {
+            // Admin sees all initial sections
+            filteredSections = response.documents;
+        } else if (user.organization?.$id) {
+            // Filter by organization - only show sections where user's org is in appliedOrganizations
+            filteredSections = response.documents.filter(section => {
+                if (!section.appliedOrganizations || !Array.isArray(section.appliedOrganizations)) {
+                    return false;
+                }
+                return section.appliedOrganizations.some(org => {
+                    const orgId = org.$id || org;
+                    return orgId === user.organization.$id;
+                });
+            });
+        } else {
+            // User has no organization, show no initial sections
+            filteredSections = [];
+        }
+
+        return { data: filteredSections, error: null };
+    } catch (error) {
+        console.log('Failed to get filtered initial sections:', error);
+        return { data: null, error: error };
+    }
+});
+
 export async function createDocument(db_id, collection_id, { document_id, body }) {
     const databases = new Databases(client);
 
@@ -353,8 +394,8 @@ export async function signInWithEmail(email, password) {
             cookieStore.set("messuopas-session", session.secret, {
                 path: "/",
                 httpOnly: true,
-                sameSite: "strict",
-                secure: true,
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
             });
         }
         return { error: null, success: true };
